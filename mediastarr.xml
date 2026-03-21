@@ -1,0 +1,139 @@
+<?xml version="1.0"?>
+<Container version="2">
+
+  <!-- ══════════════════════════════════════════════════════
+       Mediastarr — Automated media search for Sonarr & Radarr
+       https://github.com/kroeberd/mediastarr
+       ══════════════════════════════════════════════════════ -->
+
+  <Name>Mediastarr</Name>
+  <Repository>kroeberd/mediastarr:latest</Repository>
+  <Registry>https://hub.docker.com/r/kroeberd/mediastarr</Registry>
+  <GitHub>https://github.com/kroeberd/mediastarr</GitHub>
+  <Branch>main</Branch>
+
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+
+  <Support>https://github.com/kroeberd/mediastarr/issues</Support>
+  <Project>https://github.com/kroeberd/mediastarr</Project>
+  <Overview>
+    Automated missing-content and quality-upgrade search for Sonarr and Radarr.
+
+    Features:
+    - Multiple Sonarr/Radarr instances with custom names (HD, 4K, Anime …)
+    - Only Sonarr, only Radarr, or any mix — fully optional
+    - SQLite search history with per-item cooldown (configurable in days)
+    - Configurable daily search limit
+    - Random jitter on hunt intervals (minimum 15 minutes enforced)
+    - Discord webhook notifications with per-event toggles and rate-limit protection
+    - Periodic statistics report to Discord
+    - Sonarr search granularity: episode / season / full series
+    - Upgrade search on/off toggle
+    - Dark / Light / OLED themes
+    - German and English UI + logs
+    - First-run browser wizard — no config file editing required
+
+    Independent project, not affiliated with Huntarr.
+  </Overview>
+  <Category>Downloaders: MediaApp:Other</Category>
+  <WebUI>http://[IP]:[PORT:7979]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/kroeberd/mediastarr/main/mediastarr.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/kroeberd/mediastarr/main/static/icon.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>
+    At least one running Sonarr or Radarr instance reachable from the container.
+    Recommended: same Docker network as your Arr stack.
+  </Requires>
+
+  <!-- ── Port ────────────────────────────────────────────── -->
+  <Config
+    Name="WebUI Port"
+    Target="7979"
+    Default="7979"
+    Mode="tcp"
+    Description="Port for the Mediastarr web interface."
+    Type="Port"
+    Display="always"
+    Required="true"
+    Mask="false">7979</Config>
+
+  <!-- ── Data volume ──────────────────────────────────────── -->
+  <Config
+    Name="Data Directory"
+    Target="/data"
+    Default="/mnt/user/appdata/mediastarr"
+    Mode="rw"
+    Description="Stores config.json and the SQLite search history database. Must be a persistent path — without this, the setup wizard restarts on every container restart."
+    Type="Path"
+    Display="always"
+    Required="true"
+    Mask="false">/mnt/user/appdata/mediastarr</Config>
+
+  <!-- ══════════════════════════════════════════════════════
+       Optional environment variables.
+       Leave blank to use the first-run wizard instead.
+       ══════════════════════════════════════════════════════ -->
+
+  <Config
+    Name="Sonarr API Key"
+    Target="SONARR_API_KEY"
+    Default=""
+    Mode=""
+    Description="Optional: Sonarr API key for automatic first-run setup. Find it in Sonarr → Settings → General → Security → API Key. If both SONARR_API_KEY and RADARR_API_KEY are set, the wizard is skipped."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="true"></Config>
+
+  <Config
+    Name="Sonarr URL"
+    Target="SONARR_URL"
+    Default="http://sonarr:8989"
+    Mode=""
+    Description="Optional: Sonarr URL (used only with SONARR_API_KEY)."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="false">http://sonarr:8989</Config>
+
+  <Config
+    Name="Radarr API Key"
+    Target="RADARR_API_KEY"
+    Default=""
+    Mode=""
+    Description="Optional: Radarr API key for automatic first-run setup. Find it in Radarr → Settings → General → Security → API Key."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="true"></Config>
+
+  <Config
+    Name="Radarr URL"
+    Target="RADARR_URL"
+    Default="http://radarr:7878"
+    Mode=""
+    Description="Optional: Radarr URL (used only with RADARR_API_KEY)."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="false">http://radarr:7878</Config>
+
+  <Config
+    Name="Data Directory (env)"
+    Target="DATA_DIR"
+    Default="/data"
+    Mode=""
+    Description="Internal container path for the data directory. Change only if you know what you are doing."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="false">/data</Config>
+
+</Container>
