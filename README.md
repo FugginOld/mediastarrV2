@@ -223,10 +223,10 @@ Einstellungen → Discord:
 
 Beliebige Kombinationen direkt in den Einstellungen konfigurierbar:
 
-- `Sonarr HD` → `http://sonarr:8989`
+- `Sonarr HD` → `http://[IP]:8989`
 - `Sonarr 4K` → `http://sonarr4k:8989`
 - `Sonarr Anime` → `http://sonarr-anime:8989`
-- `Radarr HD` → `http://radarr:7878`
+- `Radarr HD` → `http://[IP]:7878`
 
 ## ⚙️ Einstellungen
 

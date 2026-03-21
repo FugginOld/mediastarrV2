@@ -10,16 +10,24 @@ import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 
-_lock = threading.Lock()
+_lock = threading.RLock()
 _conn = None
 _db_path = None
 
 
+def _require_init():
+    if _conn is None:
+        raise RuntimeError("Database is not initialized. Call init(db_path) first.")
+
+
 def init(db_path: Path):
     global _conn, _db_path
-    _db_path = db_path
-    _conn = _connect()
-    _migrate()
+    with _lock:
+        if _conn is not None:
+            _conn.close()
+        _db_path = db_path
+        _conn = _connect()
+        _migrate()
 
 
 def _connect():
@@ -32,6 +40,7 @@ def _connect():
 
 def _migrate():
     """Create schema and run non-destructive migrations on existing DBs."""
+    _require_init()
     with _lock:
         # Step 1: base table (release_year NOT included here so ALTER works on old DBs)
         _conn.execute("""
@@ -78,6 +87,7 @@ def upsert_search(service: str, item_type: str, item_id: int,
                   last_changed_at: str = None,
                   release_year: int = None):
     """Insert or update a search record. Increments search_count on conflict."""
+    _require_init()
     now = datetime.utcnow().isoformat()
     with _lock:
         _conn.execute("""
@@ -102,6 +112,7 @@ def upsert_search(service: str, item_type: str, item_id: int,
 def is_on_cooldown(service: str, item_type: str, item_id: int,
                    cooldown_days: int) -> bool:
     """True if this item was searched within the cooldown window."""
+    _require_init()
     cutoff = (datetime.utcnow() - timedelta(days=cooldown_days)).isoformat()
     with _lock:
         row = _conn.execute("""
@@ -115,6 +126,7 @@ def get_history(limit: int = 300, service: str = "",
                 only_cooldown: bool = False,
                 cooldown_days: int = 7) -> list:
     """Return recent history rows as plain dicts, newest first."""
+    _require_init()
     cutoff = (datetime.utcnow() - timedelta(days=cooldown_days)).isoformat()
     wheres, params = [], []
 
@@ -129,17 +141,18 @@ def get_history(limit: int = 300, service: str = "",
     with _lock:
         rows = _conn.execute(f"""
             SELECT *,
-                   (searched_at > '{cutoff}') AS on_cooldown
+                   (searched_at > ?) AS on_cooldown
             FROM search_history
             {where_sql}
             ORDER BY searched_at DESC
             LIMIT ?
-        """, params).fetchall()
+        """, [cutoff, *params]).fetchall()
     return [dict(r) for r in rows]
 
 
 def count_today() -> int:
     """Number of real searches triggered today (UTC date)."""
+    _require_init()
     today = datetime.utcnow().strftime("%Y-%m-%d")
     with _lock:
         row = _conn.execute("""
@@ -150,6 +163,7 @@ def count_today() -> int:
 
 
 def total_count() -> int:
+    _require_init()
     with _lock:
         row = _conn.execute(
             "SELECT COUNT(*) AS n FROM search_history").fetchone()
@@ -158,6 +172,7 @@ def total_count() -> int:
 
 def stats_by_service() -> dict:
     """Per-service summary totals."""
+    _require_init()
     with _lock:
         rows = _conn.execute("""
             SELECT service,
@@ -172,6 +187,7 @@ def stats_by_service() -> dict:
 
 def year_stats() -> list:
     """Count of searched items grouped by release_year (for charts)."""
+    _require_init()
     with _lock:
         rows = _conn.execute("""
             SELECT release_year, COUNT(*) AS count
@@ -187,6 +203,7 @@ def year_stats() -> list:
 
 def purge_expired(cooldown_days: int) -> int:
     """Remove rows older than cooldown so they can be re-searched next time."""
+    _require_init()
     cutoff = (datetime.utcnow() - timedelta(days=cooldown_days)).isoformat()
     with _lock:
         cur = _conn.execute(
@@ -196,6 +213,7 @@ def purge_expired(cooldown_days: int) -> int:
 
 
 def clear_service(service: str) -> int:
+    _require_init()
     with _lock:
         cur = _conn.execute(
             "DELETE FROM search_history WHERE service=?", (service,))
@@ -204,6 +222,7 @@ def clear_service(service: str) -> int:
 
 
 def clear_all() -> int:
+    _require_init()
     with _lock:
         cur = _conn.execute("DELETE FROM search_history")
         _conn.commit()

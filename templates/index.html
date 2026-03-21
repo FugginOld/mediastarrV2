@@ -88,7 +88,7 @@
     .theme-btn {
       flex: 1; padding: 6px 4px; border-radius: 6px; border: 1px solid var(--border2);
       background: var(--surface); cursor: pointer; font-size: 14px; text-align: center;
-      transition: all 0.15s; title: "";
+      transition: all 0.15s;
     }
     .theme-btn:hover { border-color: var(--muted2); }
     .theme-btn.active { border-color: var(--accent); background: rgba(255,107,43,0.12); }
@@ -414,12 +414,12 @@
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label" data-i18n="lbl_missing">Missing-Intervall (s)</label>
-              <input class="form-input" id="cfg-missing" type="number" min="60" max="86400" value="900">
+              <input class="form-input" id="cfg-missing" type="number" min="900" max="86400" value="900">
               <div class="form-hint" data-i18n="hint_missing">Sekunden zwischen Suchzyklen. Min 60.</div>
             </div>
             <div class="form-group">
               <label class="form-label" data-i18n="lbl_upgrade">Upgrade-Intervall (s)</label>
-              <input class="form-input" id="cfg-upgrade" type="number" min="60" max="86400" value="1800">
+              <input class="form-input" id="cfg-upgrade" type="number" min="900" max="86400" value="1800">
             </div>
             <div class="form-group">
               <label class="form-label" data-i18n="lbl_max">Max. Searches pro Lauf</label>
@@ -511,8 +511,8 @@
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px" data-i18n="lbl_new_instance">Neue Instanz</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
               <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="new-inst-name" type="text" placeholder="z.B. Sonarr 4K"></div>
-              <div class="form-group"><label class="form-label">Typ</label><select class="form-input" id="new-inst-type"><option value="sonarr">Sonarr</option><option value="radarr">Radarr</option></select></div>
-              <div class="form-group" style="grid-column:1/-1"><label class="form-label">URL</label><input class="form-input" id="new-inst-url" type="text" placeholder="http://sonarr:8989"></div>
+              <div class="form-group"><label class="form-label">Typ</label><select class="form-input" id="new-inst-type" onchange="syncNewInstUrlHint()"><option value="sonarr">Sonarr</option><option value="radarr">Radarr</option></select></div>
+              <div class="form-group" style="grid-column:1/-1"><label class="form-label">URL</label><input class="form-input" id="new-inst-url" type="text" placeholder="http://127.0.0.1:8989"></div>
               <div class="form-group" style="grid-column:1/-1"><label class="form-label">API Key</label><input class="form-input" id="new-inst-key" type="password" placeholder="32-stelliger API Key"></div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
@@ -709,7 +709,7 @@
         <div style="font-size:10px;color:var(--muted2)">Top 10</div>
       </div>
       <div class="chart-body" id="st-year-bars">
-        <div style="text-align:center;color:var(--muted);padding:20px 0;font-size:12px">${isDE_s?'Lade...':'Loading...'}</div>
+        <div style="text-align:center;color:var(--muted);padding:20px 0;font-size:12px">Loading...</div>
       </div>
     </div>
 
@@ -735,7 +735,7 @@
         <div style="font-size:10px;color:var(--muted2)" id="st-chart-types-sub">Missing vs. Upgrade</div>
       </div>
       <div class="chart-body" id="st-type-bars">
-        <div style="text-align:center;color:var(--muted);padding:20px 0;font-size:12px">${isDE_s?'Lade...':'Loading...'}</div>
+        <div style="text-align:center;color:var(--muted);padding:20px 0;font-size:12px">Loading...</div>
       </div>
     </div>
 
@@ -908,6 +908,11 @@ function applyLang() {
   // History placeholder
   const hq = document.getElementById('hist-q');
   if (hq) hq.placeholder = isDE ? 'Suchen…' : 'Search…';
+  const newName = document.getElementById('new-inst-name');
+  if (newName) newName.placeholder = isDE ? 'z.B. Sonarr 4K' : 'e.g. Sonarr 4K';
+  const newKey = document.getElementById('new-inst-key');
+  if (newKey) newKey.placeholder = isDE ? '32-stelliger API Key' : '32-character API key';
+  syncNewInstUrlHint();
   // History filter selects
   const hsvc = document.getElementById('hist-svc');
   if (hsvc && hsvc.options[0]) hsvc.options[0].text = isDE ? 'Alle' : 'All';
@@ -982,6 +987,35 @@ function toggleCfg(key) {
 // ══ Format helpers ══
 function fmtSec(s) { return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s/60)}min` : `${Math.floor(s/3600)}h`; }
 function fmtDays(d) { return currentLang==='de' ? (d===1?'1 Tag':`${d} Tage`) : (d===1?'1 day':`${d} days`); }
+function escHtml(v) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function getInstallHost() {
+  const host = window.location.hostname || '127.0.0.1';
+  return host === 'localhost' ? '127.0.0.1' : host;
+}
+function defaultArrUrl(type) {
+  const port = type === 'sonarr' ? '8989' : '7878';
+  return `http://${getInstallHost()}:${port}`;
+}
+function syncNewInstUrlHint() {
+  const typeEl = document.getElementById('new-inst-type');
+  const urlEl = document.getElementById('new-inst-url');
+  if (!typeEl || !urlEl) return;
+  const nextDefault = defaultArrUrl(typeEl.value);
+  const oldSonarr = defaultArrUrl('sonarr');
+  const oldRadarr = defaultArrUrl('radarr');
+  const cur = (urlEl.value || '').trim();
+  if (!cur || cur === oldSonarr || cur === oldRadarr) {
+    urlEl.value = nextDefault;
+  }
+  urlEl.placeholder = nextDefault;
+}
 
 // ══ Fetch & Update ══
 async function fetchState() {
@@ -1320,8 +1354,9 @@ async function resetSetup() {
 function renderSettingsInstances() {
   const el = document.getElementById('settings-inst-list');
   if (!el || !appState.instances) return;
+  const isDE = currentLang === 'de';
   if (!appState.instances.length) {
-    el.innerHTML = currentLang==='de' ? '<div style="text-align:center;color:var(--muted2);font-size:12px;padding:16px">Keine Instanzen konfiguriert.</div>' : '<div style="text-align:center;color:var(--muted2);font-size:12px;padding:16px">No instances configured.</div>';
+    el.innerHTML = isDE ? '<div style="text-align:center;color:var(--muted2);font-size:12px;padding:16px">Keine Instanzen konfiguriert.</div>' : '<div style="text-align:center;color:var(--muted2);font-size:12px;padding:16px">No instances configured.</div>';
     return;
   }
   el.innerHTML = appState.instances.map(inst => {
@@ -1332,6 +1367,14 @@ function renderSettingsInstances() {
     const accentColor = inst.type === 'sonarr' ? 'var(--blue)' : 'var(--accent)';
     const accentBg    = inst.type === 'sonarr' ? 'rgba(77,156,255,.12)' : 'rgba(255,107,43,.12)';
     const ico = inst.type === 'sonarr' ? '📺' : '🎬';
+    const safeName = escHtml(inst.name || '');
+    const safeUrl = escHtml(inst.url || '');
+    const typeLabel = isDE ? 'Typ' : 'Type';
+    const namePlaceholder = inst.type === 'sonarr'
+      ? (isDE ? 'z.B. Sonarr 4K' : 'e.g. Sonarr 4K')
+      : (isDE ? 'z.B. Radarr HD' : 'e.g. Radarr HD');
+    const saveLabel = isDE ? '💾 Speichern' : '💾 Save';
+    const deleteLabel = isDE ? '🗑 Löschen' : '🗑 Delete';
     return `
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px" id="icard-${inst.id}">
       <!-- Header bar -->
@@ -1352,19 +1395,19 @@ function renderSettingsInstances() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px">
           <div class="form-group">
             <label class="form-label">Name</label>
-            <input class="form-input" id="iname-${inst.id}" type="text" value="${inst.name.replace(/"/g,'&quot;')}" placeholder="z.B. Sonarr 4K"
+            <input class="form-input" id="iname-${inst.id}" type="text" value="${safeName}" placeholder="${namePlaceholder}"
               style="border-color:${accentColor.replace('var(','').replace(')','') === '--blue' ? 'rgba(77,156,255,.4)' : 'rgba(255,107,43,.35)'}">
           </div>
           <div class="form-group">
-            <label class="form-label">Typ</label>
+            <label class="form-label">${typeLabel}</label>
             <select class="form-input" id="itype-${inst.id}" onchange="renderSettingsInstances()">
-              <option value="sonarr" ${inst.type==='sonarr'?'selected':''}>📺 Sonarr</option>
-              <option value="radarr" ${inst.type==='radarr'?'selected':''}>🎬 Radarr</option>
+              <option value="sonarr" ${inst.type==='sonarr'?'selected':''}>${isDE ? '📺 Sonarr (Serien)' : '📺 Sonarr (Series)'}</option>
+              <option value="radarr" ${inst.type==='radarr'?'selected':''}>${isDE ? '🎬 Radarr (Filme)' : '🎬 Radarr (Movies)'}</option>
             </select>
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label class="form-label">URL</label>
-            <input class="form-input" id="iurl-${inst.id}" type="text" value="${inst.url}" placeholder="http://sonarr:8989">
+            <input class="form-input" id="iurl-${inst.id}" type="text" value="${safeUrl}" placeholder="${defaultArrUrl(inst.type)}">
           </div>
           <div class="form-group" style="grid-column:1/-1">
             <label class="form-label" id="inst-key-lbl">API Key</label>
@@ -1375,9 +1418,9 @@ function renderSettingsInstances() {
         <!-- Action row -->
         <div style="display:flex;gap:7px;align-items:center">
           <button class="btn btn-now" style="font-size:11px" onclick="pingInstSave('${inst.id}')">🔌 Test</button>
-          <button class="btn btn-start" style="font-size:11px" onclick="saveInst('${inst.id}')">💾 Speichern</button>
+          <button class="btn btn-start" style="font-size:11px" onclick="saveInst('${inst.id}')">${saveLabel}</button>
           <div id="isave-msg-${inst.id}" style="font-size:10px;display:none"></div>
-          <button class="btn btn-stop" style="margin-left:auto;font-size:11px" onclick="deleteInst('${inst.id}')">🗑 Löschen</button>
+          <button class="btn btn-stop" style="margin-left:auto;font-size:11px" onclick="deleteInst('${inst.id}')">${deleteLabel}</button>
         </div>
       </div>
     </div>`;
@@ -1386,12 +1429,12 @@ function renderSettingsInstances() {
 
 async function pingInstSave(id) {
   const msg = document.getElementById(`isave-msg-${id}`);
-  if (msg) { msg.style.display='block'; msg.style.color='var(--muted2)'; msg.textContent='⟳ Teste...'; }
+  if (msg) { msg.style.display='block'; msg.style.color='var(--muted2)'; msg.textContent = currentLang==='de' ? '⟳ Teste...' : '⟳ Testing...'; }
   const r = await fetch(`/api/instances/${id}/ping`);
   const d = await r.json();
   if (msg) {
     msg.style.color = d.ok ? 'var(--green)' : 'var(--red)';
-    msg.textContent = d.ok ? `✓ Verbunden v${d.version}` : `✗ ${d.msg||'Fehler'}`;
+    msg.textContent = d.ok ? (currentLang==='de' ? `✓ Verbunden v${d.version}` : `✓ Connected v${d.version}`) : `✗ ${d.msg|| (currentLang==='de'?'Fehler':'Error')}`;
   }
   fetchState();
 }
@@ -1409,7 +1452,7 @@ async function saveInst(id) {
   const msg  = document.getElementById(`isave-msg-${id}`);
 
   if (!name) {
-    if (msg) { msg.style.display='block'; msg.style.color='var(--red)'; msg.textContent='✗ Name darf nicht leer sein'; }
+    if (msg) { msg.style.display='block'; msg.style.color='var(--red)'; msg.textContent = currentLang==='de' ? '✗ Name darf nicht leer sein' : '✗ Name must not be empty'; }
     return;
   }
 
@@ -1425,7 +1468,7 @@ async function saveInst(id) {
   if (msg) {
     msg.style.display = 'block';
     msg.style.color   = d.ok ? 'var(--green)' : 'var(--red)';
-    msg.textContent   = d.ok ? '✓ Gespeichert' : `✗ ${d.error||'Fehler'}`;
+    msg.textContent   = d.ok ? (currentLang==='de' ? '✓ Gespeichert' : '✓ Saved') : `✗ ${d.error|| (currentLang==='de'?'Fehler':'Error')}`;
     if (d.ok) setTimeout(() => { msg.style.display='none'; }, 2500);
   }
   if (d.ok) { fetchState(); setTimeout(renderSettingsInstances, 400); }
@@ -1439,7 +1482,7 @@ async function addInstFromSettings() {
   const msg  = document.getElementById('new-inst-msg');
 
   if (!name || !url || !key) {
-    if (msg) { msg.style.display='block'; msg.style.color='var(--red)'; msg.textContent='✗ Alle Felder ausfüllen'; }
+    if (msg) { msg.style.display='block'; msg.style.color='var(--red)'; msg.textContent = currentLang==='de' ? '✗ Alle Felder ausfüllen' : '✗ Fill in all fields'; }
     return;
   }
 
@@ -1452,14 +1495,14 @@ async function addInstFromSettings() {
     msg.style.display = 'block';
     if (d.ok) {
       msg.style.color = 'var(--green)';
-      msg.textContent = '✓ Instanz hinzugefügt';
+      msg.textContent = currentLang==='de' ? '✓ Instanz hinzugefügt' : '✓ Instance added';
       document.getElementById('new-inst-name').value = '';
-      document.getElementById('new-inst-url').value  = '';
+      syncNewInstUrlHint();
       document.getElementById('new-inst-key').value  = '';
       setTimeout(() => { msg.style.display='none'; }, 2500);
     } else {
       msg.style.color = 'var(--red)';
-      msg.textContent = '✗ ' + (d.errors?.[0] || d.error || 'Fehler');
+      msg.textContent = '✗ ' + (d.errors?.[0] || d.error || (currentLang==='de' ? 'Fehler' : 'Error'));
     }
   }
   if (d.ok) { fetchState(); setTimeout(renderSettingsInstances, 400); }
@@ -1475,8 +1518,11 @@ async function toggleInst(id, enabled) {
 
 async function deleteInst(id) {
   const inst = appState.instances?.find(i=>i.id===id);
-  const name = inst?.name || 'diese Instanz';
-  if (!confirm(`"${name}" wirklich löschen?\nDer Suchverlauf dieser Instanz bleibt erhalten.`)) return;
+  const name = inst?.name || (currentLang==='de' ? 'diese Instanz' : 'this instance');
+  const msg = currentLang==='de'
+    ? `"${name}" wirklich löschen?\nDer Suchverlauf dieser Instanz bleibt erhalten.`
+    : `Delete "${name}"?\nThe search history for this instance will be kept.`;
+  if (!confirm(msg)) return;
   const r = await fetch(`/api/instances/${id}`, {method:'DELETE'});
   const d = await r.json();
   if (d.ok) { fetchState(); setTimeout(renderSettingsInstances, 300); }
@@ -1873,8 +1919,8 @@ async function statsNow() {
 
 // Init
 fetchState();
+syncNewInstUrlHint();
 setInterval(fetchState, 4000);
-setInterval(() => { if (document.getElementById('page-stats')?.style.display!=='none') loadStats(); }, 30000);
 setInterval(() => { if (document.getElementById('page-stats')?.style.display!=='none') loadStats(); }, 30000);
 </script>
 </body>

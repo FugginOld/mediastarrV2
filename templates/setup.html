@@ -48,7 +48,7 @@
     .input{width:100%;padding:9px 11px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;transition:border-color .15s}
     .input:focus{border-color:var(--accent)}
     .input.valid{border-color:rgba(61,230,139,.5)}
-    .tgl{width:30px;height:16px;background:var(--brd2);border-radius:100px;position:relative;cursor:pointer;flex-shrink:0;display:inline-block}
+    .tgl{width:30px;height:16px;background:var(--border2);border-radius:100px;position:relative;cursor:pointer;flex-shrink:0;display:inline-block}
     .tgl.on{background:var(--accent)}
     .tgl::after{content:'';position:absolute;width:11px;height:11px;background:#fff;border-radius:50%;top:2.5px;left:3px;transition:left .15s}
     .tgl.on::after{left:16px}
@@ -140,12 +140,12 @@
       </div>
       <div class="card-body">
         <div class="lang-grid">
-          <div class="lang-card selected" onclick="selectLang('de',this)">
+          <div class="lang-card selected" id="lc-de" onclick="selectLang('de',this)">
             <div class="lang-flag">🇩🇪</div>
             <div class="lang-name">Deutsch</div>
             <div class="lang-sub">German</div>
           </div>
-          <div class="lang-card" onclick="selectLang('en',this)">
+          <div class="lang-card" id="lc-en" onclick="selectLang('en',this)">
             <div class="lang-flag">🇬🇧</div>
             <div class="lang-name">English</div>
             <div class="lang-sub">Englisch</div>
@@ -153,7 +153,7 @@
         </div>
       </div>
       <div class="card-footer">
-        <div style="font-size:11px;color:var(--muted)">Schritt 1 von 2</div>
+        <div style="font-size:11px;color:var(--muted)">Schritt 1 von 4</div>
         <button class="btn btn-accent" onclick="goTo(2)">Weiter →</button>
       </div>
     </div>
@@ -259,6 +259,41 @@ let instances = [];  // [{id(temp), type, name, url, api_key, tested, version}]
 let nextTempId = 1;
 let discordUrl = '';
 
+function escHtml(v) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function localizeServerMsg(msg) {
+  const text = String(msg || '');
+  if (lang === 'de') return text;
+  return text
+    .replace('Unbekannter Typ', 'Unknown type')
+    .replace('URL ungültig:', 'Invalid URL:')
+    .replace('URL fehlt', 'URL is missing')
+    .replace('URL zu lang', 'URL is too long')
+    .replace('Kein Hostname', 'Missing hostname')
+    .replace('API Key fehlt', 'API key is missing')
+    .replace('Ungültiges Format', 'Invalid format')
+    .replace('Verbindung fehlgeschlagen', 'Connection failed')
+    .replace('Fehler beim Speichern.', 'Failed to save.')
+    .replace('Mindestens eine Instanz erforderlich', 'At least one instance required');
+}
+
+function getInstallHost() {
+  const host = window.location.hostname || '127.0.0.1';
+  return host === 'localhost' ? '127.0.0.1' : host;
+}
+
+function defaultArrUrl(type) {
+  const port = type === 'sonarr' ? '8989' : '7878';
+  return `http://${getInstallHost()}:${port}`;
+}
+
 function selectLang(l, el) {
   lang = l;
   document.querySelectorAll('.lang-card').forEach(c => c.className = 'lang-card');
@@ -279,7 +314,7 @@ function applyWizardLang() {
   const p1s = document.querySelector('#pane-1 .card-sub');
   if (p1s) p1s.textContent = isDE ? 'Kann jederzeit im Dashboard geändert werden.' : 'Can be changed at any time in the dashboard.';
   const p1step = document.querySelector('#pane-1 .card-footer span');
-  if (p1step) p1step.textContent = isDE ? 'Schritt 1 von 2' : 'Step 1 of 2';
+  if (p1step) p1step.textContent = isDE ? 'Schritt 1 von 4' : 'Step 1 of 4';
   const p1next = document.querySelector('#pane-1 .btn-accent');
   if (p1next) p1next.textContent = isDE ? 'Weiter →' : 'Next →';
   // Pane 2 (Instances)
@@ -356,7 +391,7 @@ function addInstance(defaults = {}) {
   const type = defaults.type || 'sonarr';
   const defaultName = type === 'sonarr' ? 'Sonarr' : 'Radarr';
   instances.push({id, type, name: defaults.name || defaultName,
-                  url: defaults.url || '', api_key: '', tested: false, version: ''});
+                  url: defaults.url || defaultArrUrl(type), api_key: '', tested: false, version: ''});
   renderInstances();
 }
 
@@ -367,62 +402,89 @@ function removeInstance(id) {
 
 function updateInst(id, field, value) {
   const inst = instances.find(i => i.id === id);
-  if (inst) { inst[field] = value; if (field !== 'api_key') inst.tested = false; }
+  if (!inst) return;
+  if (field === 'type') {
+    const prevType = inst.type;
+    const prevDefault = defaultArrUrl(prevType);
+    inst.type = value;
+    if (!inst.url || inst.url.trim() === '' || inst.url === prevDefault) {
+      inst.url = defaultArrUrl(value);
+    }
+    inst.tested = false;
+    return;
+  }
+  inst[field] = value;
+  if (field !== 'api_key') inst.tested = false;
 }
 
 function renderInstances() {
   const el = document.getElementById('inst-list');
   if (!instances.length) {
     el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted2);font-size:12px">
-      Keine Instanzen.</div>`;
+      ${lang === 'de' ? 'Keine Instanzen.' : 'No instances.'}</div>`;
     return;
   }
-  el.innerHTML = instances.map((inst,idx) => `
+  el.innerHTML = instances.map((inst,idx) => {
+    const displayName = escHtml(inst.name || (lang === 'de' ? `Instanz ${idx+1}` : `Instance ${idx+1}`));
+    const safeName = escHtml(inst.name || '');
+    const safeUrl = escHtml(inst.url || '');
+    const badgeLabel = inst.type === 'sonarr' ? '📺 Sonarr' : '🎬 Radarr';
+    const statusText = inst.tested ? `✓ v${escHtml(inst.version || '')}` : (lang === 'de' ? '○ nicht getestet' : '○ not tested');
+    const namePlaceholder = inst.type === 'sonarr'
+      ? (lang === 'de' ? 'z.B. Sonarr 4K' : 'e.g. Sonarr 4K')
+      : (lang === 'de' ? 'z.B. Radarr HD' : 'e.g. Radarr HD');
+    const urlPlaceholder = defaultArrUrl(inst.type);
+    const testLabel = lang === 'de' ? '🔌 Test' : '🔌 Test';
+    const removeLabel = '✕';
+
+    return `
     <div class="inst-card" id="ic-${inst.id}">
       <div class="inst-card-header">
-        <span class="inst-type-badge badge-${inst.type}">${inst.type === 'sonarr' ? '📺 Sonarr' : '🎬 Radarr'}</span>
-        <span class="inst-name">${inst.name || `Instanz ${idx+1}`}</span>
+        <span class="inst-type-badge badge-${inst.type}">${badgeLabel}</span>
+        <span class="inst-name">${displayName}</span>
         <span class="inst-status ${inst.tested ? 'ok' : 'pending'}" id="status-${inst.id}">
-          ${inst.tested ? `✓ v${inst.version}` : '○ nicht getestet'}
+          ${statusText}
         </span>
-        <button class="btn btn-danger" style="padding:3px 8px;font-size:10px" onclick="removeInstance('${inst.id}')">✕</button>
+        <button class="btn btn-danger" style="padding:3px 8px;font-size:10px" onclick="removeInstance('${inst.id}')">${removeLabel}</button>
       </div>
       <div class="inst-body">
         <div class="field">
-          <label class="label">Name</label>
-          <input class="input" value="${inst.name}" placeholder="${inst.type === 'sonarr' ? 'z.B. Sonarr 4K' : 'z.B. Radarr HD'}"
+          <label class="label">${lang === 'de' ? 'Name' : 'Name'}</label>
+          <input class="input" id="name-${inst.id}" value="${safeName}" placeholder="${namePlaceholder}"
             oninput="updateInst('${inst.id}','name',this.value)" style="border-color:${inst.name ? 'rgba(61,230,139,.4)' : ''}">
         </div>
         <div class="field">
-          <label class="label">Typ</label>
-          <select class="input" onchange="updateInst('${inst.id}','type',this.value);renderInstances()">
-            <option value="sonarr" ${inst.type==='sonarr'?'selected':''}>Sonarr (Serien)</option>
-            <option value="radarr" ${inst.type==='radarr'?'selected':''}>Radarr (Filme)</option>
+          <label class="label">${lang === 'de' ? 'Typ' : 'Type'}</label>
+          <select class="input" id="type-select-${inst.id}" onchange="updateInst('${inst.id}','type',this.value);renderInstances()">
+            <option value="sonarr" ${inst.type==='sonarr'?'selected':''}>${lang === 'de' ? 'Sonarr (Serien)' : 'Sonarr (Series)'}</option>
+            <option value="radarr" ${inst.type==='radarr'?'selected':''}>${lang === 'de' ? 'Radarr (Filme)' : 'Radarr (Movies)'}</option>
           </select>
         </div>
         <div class="field" style="grid-column:1/-1">
           <label class="label">URL</label>
-          <input class="input" value="${inst.url}" placeholder="${inst.type==='sonarr'?'http://sonarr:8989':'http://radarr:7878'}"
+          <input class="input" id="url-${inst.id}" value="${safeUrl}" placeholder="${urlPlaceholder}"
             oninput="updateInst('${inst.id}','url',this.value)">
         </div>
         <div class="field" style="grid-column:1/-1">
           <label class="label">API Key <span style="color:var(--muted)">· Settings → General → Security</span></label>
           <div class="field-row">
-            <input class="input" type="password" placeholder="32-stelliger API Key" autocomplete="off"
+            <input class="input" type="password" placeholder="${lang === 'de' ? '32-stelliger API Key' : '32-character API key'}" autocomplete="off"
               oninput="updateInst('${inst.id}','api_key',this.value)">
-            <button class="btn btn-test" onclick="testInst('${inst.id}')">🔌 Test</button>
+            <button class="btn btn-test" onclick="testInst('${inst.id}')">${testLabel}</button>
           </div>
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 async function testInst(id) {
   const inst = instances.find(i => i.id === id);
   if (!inst) return;
   const statusEl = document.getElementById(`status-${id}`);
-  statusEl.textContent = '⟳ teste...'; statusEl.className = 'inst-status pending';
+  statusEl.textContent = lang === 'de' ? '⟳ teste...' : '⟳ testing...';
+  statusEl.className = 'inst-status pending';
   try {
     const r = await fetch('/api/setup/ping', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -434,9 +496,14 @@ async function testInst(id) {
       statusEl.textContent = `✓ v${d.version}`; statusEl.className = 'inst-status ok';
     } else {
       inst.tested = false;
-      statusEl.textContent = `✗ ${d.msg||'Fehler'}`; statusEl.className = 'inst-status fail';
+      const failMsg = localizeServerMsg(d.msg || (lang === 'de' ? 'Fehler' : 'Error'));
+      statusEl.textContent = `✗ ${failMsg}`;
+      statusEl.className = 'inst-status fail';
     }
-  } catch { statusEl.textContent = '✗ Netzwerkfehler'; statusEl.className = 'inst-status fail'; }
+  } catch {
+    statusEl.textContent = lang === 'de' ? '✗ Netzwerkfehler' : '✗ Network error';
+    statusEl.className = 'inst-status fail';
+  }
   // Sync rendered input values → instances array (catches init values)
   setTimeout(() => {
     instances.forEach(inst => {
@@ -484,6 +551,9 @@ async function testWizardDiscord() {
 
 async function finishSetup() {
   const errEl = document.getElementById('setup-errors-p3') || document.getElementById('setup-errors');
+  const btn = document.getElementById('finish-btn');
+  const btnOrigText = lang === 'de' ? '✓ Setup abschließen' : '✓ Finish setup';
+  if (!btn) return;
   errEl.style.display = 'none';
   if (instances.length === 0) {
     errEl.textContent = lang === 'de' ? 'Mindestens eine Instanz erforderlich.' : 'At least one instance required.';
@@ -518,8 +588,6 @@ async function finishSetup() {
       return;
     }
   }
-  const btn = document.getElementById('finish-btn');
-  const btnOrigText = lang === 'de' ? '✓ Setup abschließen' : '✓ Finish setup';
   btn.disabled = true;
   btn.textContent = lang === 'de' ? '⏳ Speichere...' : '⏳ Saving...';
   const dcUrl = document.getElementById('wiz-dc-url')?.value?.trim() || '';
@@ -566,10 +634,11 @@ async function finishSetup() {
       const rawErrors = d.errors || [d.error || (lang === 'de' ? 'Fehler beim Speichern.' : 'Failed to save.')];
       const errMsg = rawErrors.map(e => {
         if (lang === 'en') {
-          return e.replace('Name fehlt', 'Name is missing')
-                  .replace('URL fehlt', 'URL is missing')
-                  .replace('API Key fehlt', 'API key is missing')
-                  .replace('Mindestens eine Instanz erforderlich', 'At least one instance required');
+          return localizeServerMsg(e)
+                  .replace('Name fehlt', 'Name is missing')
+                  .replace('Ungültige Zeichen oder zu lang (max 40)', 'Invalid characters or too long (max 40)')
+                  .replace('API Key fehlt oder zu kurz', 'API key is missing or too short')
+                  .replace('Nicht gefunden', 'Not found');
         }
         return e;
       }).join('<br>');
@@ -587,10 +656,10 @@ async function finishSetup() {
 
 function buildSummary() {
   const rows = [
-    {key:'Sprache', val: lang === 'de' ? '🇩🇪 Deutsch' : '🇬🇧 English'},
+    {key: lang === 'de' ? 'Sprache' : 'Language', val: lang === 'de' ? '🇩🇪 Deutsch' : '🇬🇧 English'},
     ...instances.map(i => ({
-      key: i.type === 'sonarr' ? '📺 ' + i.name : '🎬 ' + i.name,
-      val: i.tested ? `Online (v${i.version})` : 'Konfiguriert'
+      key: i.type === 'sonarr' ? '📺 ' + escHtml(i.name || '') : '🎬 ' + escHtml(i.name || ''),
+      val: i.tested ? `Online (v${escHtml(i.version || '')})` : (lang === 'de' ? 'Konfiguriert' : 'Configured')
     }))
   ];
   document.getElementById('summary').innerHTML = rows.map(r => `
@@ -608,7 +677,7 @@ function buildSummary() {
   if (enCard) enCard.className = 'lang-card selected';
   lang = 'en';
   applyWizardLang();
-  addInstance({type:'sonarr', name:'Sonarr', url:'http://sonarr:8989'});
+  addInstance({type:'sonarr', name:'Sonarr', url: defaultArrUrl('sonarr')});
 applyWizardLang();
 })();
 </script>

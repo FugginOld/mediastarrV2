@@ -14,7 +14,7 @@ New in v6:
   - Language switch now persists and reloads sidebar correctly
   - Instance management fully in main settings (no wizard redirect needed)
 """
-import os, re, json, time, logging, threading, requests, random, string, zoneinfo
+import os, re, json, time, logging, threading, requests, random, string, zoneinfo, socket
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
@@ -86,7 +86,7 @@ def discord_send(event_type: str, title: str, description: str,
     if toggle_key and not dc.get(toggle_key, True): return
 
     # Rate-limit cooldown (default 5 s, configurable)
-    cooldown_sec = int(dc.get("rate_limit_cooldown", 5))
+    cooldown_sec = clamp_int(dc.get("rate_limit_cooldown", 5), 1, 300, 5)
     if not force and not _dc_cooldown_ok(event_type, cooldown_sec):
         logger.debug(f"Discord rate-limit: skipping {event_type}")
         return
@@ -176,7 +176,7 @@ def _stats_loop():
         dc = CONFIG.get("discord", {})
         if not dc.get("enabled") or not dc.get("notify_stats", False):
             continue
-        interval_min = int(dc.get("stats_interval_min", 60))
+        interval_min = clamp_int(dc.get("stats_interval_min", 60), 1, 10080, 60)
         last = dc.get("stats_last_sent_at", 0.0)
         if time.time() - float(last) >= interval_min * 60:
             discord_send_stats()
@@ -312,18 +312,38 @@ def save_config(cfg: dict):
     tmp = CFG_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(cfg, indent=2)); tmp.replace(CFG_FILE)
 
+
+def _bootstrap_host() -> str:
+    """Return best-effort host/IP for local *arr fallback URLs."""
+    env_host = os.environ.get("SYSTEM_IP", "").strip() or os.environ.get("HOST_IP", "").strip()
+    if env_host:
+        return env_host
+    try:
+        ip = socket.gethostbyname(socket.gethostname())
+        if ip and not ip.startswith("127."):
+            return ip
+    except Exception:
+        pass
+    return "127.0.0.1"
+
+
+def _bootstrap_arr_url(service: str) -> str:
+    port = 8989 if service == "sonarr" else 7878
+    return f"http://{_bootstrap_host()}:{port}"
+
 CONFIG = load_config()
 
 # Env-var bootstrap
 if not CONFIG["setup_complete"] and not CONFIG["instances"]:
-    for svc, ek, eu, def_url in [
-        ("sonarr","SONARR_API_KEY","SONARR_URL","http://sonarr:8989"),
-        ("radarr","RADARR_API_KEY","RADARR_URL","http://radarr:7878"),
+    for svc, ek, eu in [
+        ("sonarr","SONARR_API_KEY","SONARR_URL"),
+        ("radarr","RADARR_API_KEY","RADARR_URL"),
     ]:
         k = os.environ.get(ek,"").strip()
         if k:
+            fallback_url = _bootstrap_arr_url(svc)
             CONFIG["instances"].append({"id":make_id(),"type":svc,
-                "name":svc.title(),"url":os.environ.get(eu,def_url).strip(),
+                "name":svc.title(),"url":os.environ.get(eu,fallback_url).strip(),
                 "api_key":k,"enabled":True})
     if CONFIG["instances"]:
         CONFIG["setup_complete"] = True; save_config(CONFIG)
@@ -335,6 +355,7 @@ STATE = {
 }
 STOP_EVENT  = threading.Event()
 hunt_thread = None
+CYCLE_LOCK  = threading.Lock()
 
 def _ensure_inst_stats():
     for inst in CONFIG["instances"]:
@@ -689,35 +710,42 @@ def ping_all():
 
 # ─── Cycle & Loop ─────────────────────────────────────────────────────────────
 def run_cycle():
-    STATE["cycle_count"] += 1
-    STATE["last_run"] = fmt_dt(now_local())
-    active = [i for i in CONFIG["instances"] if i.get("enabled") and i.get("api_key")]
-    limit  = CONFIG.get("daily_limit",0)
-    log_act("System", msg("cycle_start", n=STATE["cycle_count"],
-            active=len(active), today=db.count_today(), limit=limit or "∞"), "", "info")
-    _ensure_inst_stats()
-    for inst in CONFIG["instances"]:
-        s = STATE["inst_stats"].get(inst["id"], fresh_inst_stats())
-        for k in ("missing_searched","upgrades_searched","skipped_cooldown","skipped_daily"):
-            s[k] = 0
-    ping_all()
-    removed = db.purge_expired(CONFIG.get("cooldown_days",7))
-    if removed:
-        log_act("System", msg("db_pruned", n=removed), "", "info")
-        # Notify Discord: items back off cooldown
-        lang = CONFIG.get("language","de")
-        label = "Cooldown abgelaufen" if lang=="de" else "Cooldown expired"
-        desc  = (f"{removed} Item(s) wieder verfügbar" if lang=="de"
-                 else f"{removed} item(s) available again")
-        discord_send("cooldown", label, desc, "System")
-    for inst in CONFIG["instances"]:
-        if STOP_EVENT.is_set(): break
-        if not inst.get("enabled") or not inst.get("api_key"): continue
-        if STATE["inst_stats"].get(inst["id"],{}).get("status") != "online":
-            log_act(inst["name"], msg("skipped_offline"), "", "warning"); continue
-        if inst["type"] == "sonarr":   hunt_sonarr_instance(inst)
-        elif inst["type"] == "radarr": hunt_radarr_instance(inst)
-    log_act("System", msg("cycle_done", n=STATE["cycle_count"], today=db.count_today()), "", "info")
+    if not CYCLE_LOCK.acquire(blocking=False):
+        logger.info("run_cycle skipped: another cycle is already running")
+        return False
+    try:
+        STATE["cycle_count"] += 1
+        STATE["last_run"] = fmt_dt(now_local())
+        active = [i for i in CONFIG["instances"] if i.get("enabled") and i.get("api_key")]
+        limit  = CONFIG.get("daily_limit",0)
+        log_act("System", msg("cycle_start", n=STATE["cycle_count"],
+                active=len(active), today=db.count_today(), limit=limit or "∞"), "", "info")
+        _ensure_inst_stats()
+        for inst in CONFIG["instances"]:
+            s = STATE["inst_stats"].get(inst["id"], fresh_inst_stats())
+            for k in ("missing_searched","upgrades_searched","skipped_cooldown","skipped_daily"):
+                s[k] = 0
+        ping_all()
+        removed = db.purge_expired(CONFIG.get("cooldown_days",7))
+        if removed:
+            log_act("System", msg("db_pruned", n=removed), "", "info")
+            # Notify Discord: items back off cooldown
+            lang = CONFIG.get("language","de")
+            label = "Cooldown abgelaufen" if lang=="de" else "Cooldown expired"
+            desc  = (f"{removed} Item(s) wieder verfügbar" if lang=="de"
+                     else f"{removed} item(s) available again")
+            discord_send("cooldown", label, desc, "System")
+        for inst in CONFIG["instances"]:
+            if STOP_EVENT.is_set(): break
+            if not inst.get("enabled") or not inst.get("api_key"): continue
+            if STATE["inst_stats"].get(inst["id"],{}).get("status") != "online":
+                log_act(inst["name"], msg("skipped_offline"), "", "warning"); continue
+            if inst["type"] == "sonarr":   hunt_sonarr_instance(inst)
+            elif inst["type"] == "radarr": hunt_radarr_instance(inst)
+        log_act("System", msg("cycle_done", n=STATE["cycle_count"], today=db.count_today()), "", "info")
+        return True
+    finally:
+        CYCLE_LOCK.release()
 
 def hunt_loop():
     """Wait first so user can configure settings, then hunt on schedule."""
@@ -809,7 +837,7 @@ def api_setup_complete():
                       "notify_limit","notify_offline"):
                 if k in dc_in: dc[k] = bool(dc_in[k])
             if "rate_limit_cooldown" in dc_in:
-                dc["rate_limit_cooldown"] = max(1, min(300, int(dc_in.get("rate_limit_cooldown",5))))
+                dc["rate_limit_cooldown"] = clamp_int(dc_in.get("rate_limit_cooldown", 5), 1, 300, 5)
 
     save_config(CONFIG); _ensure_inst_stats()
     global hunt_thread
@@ -935,7 +963,7 @@ def api_control():
     elif action=="stop": STOP_EVENT.set()
     elif action=="run_now":
         if not STATE["running"]:
-            STOP_EVENT.clear(); hunt_thread=threading.Thread(target=hunt_loop,daemon=True); hunt_thread.start()
+            STOP_EVENT.clear(); threading.Thread(target=run_cycle,daemon=True).start()
         else: threading.Thread(target=run_cycle,daemon=True).start()
     return jsonify({"ok":True})
 
@@ -973,9 +1001,9 @@ def api_config():
                          "notify_cooldown","notify_limit","notify_offline","notify_stats"):
             if bool_key in dc_in: dc[bool_key] = bool(dc_in[bool_key])
         if "stats_interval_min" in dc_in:
-            dc["stats_interval_min"] = max(1, min(10080, int(dc_in["stats_interval_min"])))
+            dc["stats_interval_min"] = clamp_int(dc_in.get("stats_interval_min", 60), 1, 10080, 60)
         if "rate_limit_cooldown" in dc_in:
-            dc["rate_limit_cooldown"] = max(1, min(300, int(dc_in["rate_limit_cooldown"])))
+            dc["rate_limit_cooldown"] = clamp_int(dc_in.get("rate_limit_cooldown", 5), 1, 300, 5)
         if "webhook_url" in dc_in:
             url = safe_str(dc_in["webhook_url"], 512).strip()
             if url == "" or url.startswith(("http://","https://")):
@@ -1049,16 +1077,26 @@ def api_discord_test():
         f_inst    = "Instances"
         f_enabled = "Notifications"
 
+    if lang == "de":
+        enabled_parts = [
+            "Fehlend" if dc.get("notify_missing") else "",
+            "Upgrade" if dc.get("notify_upgrade") else "",
+            "Cooldown" if dc.get("notify_cooldown") else "",
+        ]
+    else:
+        enabled_parts = [
+            "Missing" if dc.get("notify_missing") else "",
+            "Upgrade" if dc.get("notify_upgrade") else "",
+            "Cooldown" if dc.get("notify_cooldown") else "",
+        ]
+    enabled_text = " ".join([p for p in enabled_parts if p]) or "—"
+
     active = len([i for i in CONFIG["instances"] if i.get("enabled")])
     fields = [
         {"name": f_status,  "value": f_ok, "inline": True},
         {"name": f_ver,     "value": "v6.0.2", "inline": True},
         {"name": f_inst,    "value": str(active), "inline": True},
-        {"name": f_enabled, "value": (
-            ("Fehlend" if dc.get("notify_missing") else "") + " " +
-            ("Upgrade" if dc.get("notify_upgrade") else "") + " " +
-            ("Cooldown" if dc.get("notify_cooldown") else "") or "—"
-        ).strip(), "inline": False},
+        {"name": f_enabled, "value": enabled_text, "inline": False},
     ]
     # Force-send bypassing toggle/cooldown
     saved_enabled = dc.get("enabled", False)

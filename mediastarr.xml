@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <Container version="2">
 
   <!-- ══════════════════════════════════════════════════════
@@ -95,13 +95,13 @@
   <Config
     Name="Sonarr URL"
     Target="SONARR_URL"
-    Default="http://sonarr:8989"
+    Default="http://[IP]:8989"
     Mode=""
-    Description="Optional: Sonarr URL (used only with SONARR_API_KEY)."
+    Description="Optional: Sonarr URL (used only with SONARR_API_KEY). Use the Sonarr container/service IP on the Docker network, e.g. http://172.18.0.10:8989."
     Type="Variable"
     Display="advanced"
     Required="false"
-    Mask="false">http://sonarr:8989</Config>
+    Mask="false">http://[IP]:8989</Config>
 
   <Config
     Name="Radarr API Key"
@@ -117,13 +117,13 @@
   <Config
     Name="Radarr URL"
     Target="RADARR_URL"
-    Default="http://radarr:7878"
+    Default="http://[IP]:7878"
     Mode=""
-    Description="Optional: Radarr URL (used only with RADARR_API_KEY)."
+    Description="Optional: Radarr URL (used only with RADARR_API_KEY). Use the Radarr container/service IP on the Docker network, e.g. http://172.18.0.11:7878."
     Type="Variable"
     Display="advanced"
     Required="false"
-    Mask="false">http://radarr:7878</Config>
+    Mask="false">http://[IP]:7878</Config>
 
   <Config
     Name="Data Directory (env)"
