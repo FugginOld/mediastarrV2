@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Mediastarr — Setup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#08090d;--bg2:#0d0f17;--surface:#12141e;--border:#1c1f2e;--border2:#252840;--accent:#ff6b2b;--blue:#4d9cff;--green:#3de68b;--yellow:#f5c842;--red:#ff4d4d;--text:#dde1f5;--muted:#4a4f6e;--muted2:#6b708f}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-x:hidden}
+    .bg-glow{position:fixed;border-radius:50%;filter:blur(100px);opacity:.07;pointer-events:none;z-index:0}
+    .g1{width:600px;height:600px;top:-200px;left:-200px;background:var(--accent)}
+    .g2{width:500px;height:500px;bottom:-200px;right:-100px;background:var(--blue)}
+    .wizard{position:relative;z-index:10;width:100%;max-width:600px}
+    .logo-wrap{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:28px}
+    .logo-mark{width:44px;height:44px;border-radius:11px;background:rgba(255,107,43,.15);border:1px solid rgba(255,107,43,.3);display:flex;align-items:center;justify-content:center}
+    .logo-name{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:800;color:#fff}
+    .logo-name span{color:var(--accent)}
+    .logo-sub{font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+    .steps{display:flex;align-items:center;margin-bottom:24px}
+    .step{display:flex;align-items:center;gap:7px;flex:1}
+    .step:not(:last-child)::after{content:'';flex:1;height:1px;background:var(--border2);margin:0 4px;transition:background .3s}
+    .step.done::after{background:var(--accent)}
+    .step-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;border:1px solid var(--border2);background:var(--surface);color:var(--muted2);flex-shrink:0;transition:all .25s}
+    .step.active .step-dot{border-color:var(--accent);background:rgba(255,107,43,.12);color:var(--accent)}
+    .step.done .step-dot{border-color:var(--green);background:rgba(61,230,139,.1);color:var(--green)}
+    .step-lbl{font-size:10px;color:var(--muted);white-space:nowrap}
+    .step.active .step-lbl{color:var(--text)}
+    .card{background:var(--bg2);border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:16px}
+    .card-top{padding:22px 26px 16px;border-bottom:1px solid var(--border)}
+    .top-accent{height:3px;margin:-22px -26px 18px}
+    .card-title{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:700;color:#fff;margin-bottom:5px}
+    .card-sub{font-size:11px;color:var(--muted2);line-height:1.5}
+    .card-body{padding:20px 26px}
+    .card-footer{padding:16px 26px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .btn{padding:8px 16px;border-radius:8px;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;border:1px solid var(--border2);background:var(--surface);color:var(--text);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+    .btn:hover{border-color:var(--muted2)}
+    .btn-accent{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500;padding:9px 20px}
+    .btn-accent:hover{box-shadow:0 0 18px rgba(255,107,43,.35)}
+    .btn-accent:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+    .btn-ghost{background:transparent;border-color:var(--border);color:var(--muted2)}
+    .btn-test{border-color:var(--blue);color:var(--blue)}
+    .btn-test:hover{background:rgba(77,156,255,.1)}
+    .btn-danger{border-color:var(--red);color:var(--red)}
+    .btn-danger:hover{background:rgba(255,77,77,.08)}
+    .label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);display:block;margin-bottom:6px}
+    .input{width:100%;padding:9px 11px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;transition:border-color .15s}
+    .input:focus{border-color:var(--accent)}
+    .input.valid{border-color:rgba(61,230,139,.5)}
+    .tgl{width:30px;height:16px;background:var(--brd2);border-radius:100px;position:relative;cursor:pointer;flex-shrink:0;display:inline-block}
+    .tgl.on{background:var(--accent)}
+    .tgl::after{content:'';position:absolute;width:11px;height:11px;background:#fff;border-radius:50%;top:2.5px;left:3px;transition:left .15s}
+    .tgl.on::after{left:16px}
+    .input.invalid{border-color:rgba(255,77,77,.5)}
+    select.input{cursor:pointer}
+    .field{margin-bottom:14px}
+    .field-row{display:grid;grid-template-columns:1fr auto;gap:8px}
+    .conn-result{margin-top:7px;font-size:11px;padding:6px 10px;border-radius:6px;display:none}
+    .conn-result.ok{display:block;background:rgba(61,230,139,.07);color:var(--green);border:1px solid rgba(61,230,139,.2)}
+    .conn-result.fail{display:block;background:rgba(255,77,77,.07);color:var(--red);border:1px solid rgba(255,77,77,.2)}
+
+    /* Instance list */
+    .inst-list{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+    .inst-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;overflow:hidden}
+    .inst-card-header{padding:11px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+    .inst-type-badge{padding:2px 8px;border-radius:4px;font-size:9px;text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+    .badge-sonarr{background:rgba(77,156,255,.12);color:var(--blue);border:1px solid rgba(77,156,255,.3)}
+    .badge-radarr{background:rgba(255,107,43,.12);color:var(--accent);border:1px solid rgba(255,107,43,.3)}
+    .inst-name{font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:700;color:#fff;flex:1}
+    .inst-status{font-size:10px}
+    .inst-status.ok{color:var(--green)}
+    .inst-status.fail{color:var(--red)}
+    .inst-status.pending{color:var(--muted2)}
+    .inst-body{padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .inst-body .field{margin-bottom:0}
+    .inst-actions{padding:0 14px 12px;display:flex;gap:7px;align-items:center}
+
+    .add-btn{width:100%;padding:10px;border-radius:9px;border:2px dashed var(--border2);background:transparent;color:var(--muted2);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;transition:all .15s;text-align:center}
+    .add-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(255,107,43,.05)}
+
+    /* lang picker */
+    .lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .lang-card{padding:14px;background:var(--surface);border:2px solid var(--border);border-radius:8px;cursor:pointer;text-align:center;transition:all .15s}
+    .lang-card:hover{border-color:var(--border2)}
+    .lang-card.selected{border-color:var(--accent);background:rgba(255,107,43,.07)}
+    .lang-flag{font-size:22px;margin-bottom:5px}
+    .lang-name{font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:600}
+    .lang-sub{font-size:10px;color:var(--muted2)}
+
+    /* success */
+    .success-icon{width:60px;height:60px;border-radius:50%;background:rgba(61,230,139,.1);border:1px solid rgba(61,230,139,.3);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 18px;animation:pop .4s cubic-bezier(.175,.885,.32,1.275)}
+    @keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+    .summary-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px}
+    .sum-row{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px}
+    .sum-row:last-child{border-bottom:none}
+    .sum-key{color:var(--muted2)}
+    .sum-val{font-weight:500;display:flex;align-items:center;gap:6px}
+    .dot-ok{width:6px;height:6px;border-radius:50%;background:var(--green)}
+  </style>
+</head>
+<body>
+<div class="bg-glow g1"></div><div class="bg-glow g2"></div>
+<div class="wizard">
+
+  <!-- Logo -->
+  <div class="logo-wrap">
+    <div class="logo-mark">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="#ff6b2b" stroke-width="1.6" fill="none"/>
+        <circle cx="12" cy="12" r="5"  stroke="#ff6b2b" stroke-width="1.6" fill="none"/>
+        <circle cx="12" cy="12" r="2"  fill="#ff6b2b"/>
+        <line x1="12" y1="1"  x2="12" y2="5.5"  stroke="#ff6b2b" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="12" y1="18.5" x2="12" y2="23"  stroke="#ff6b2b" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="1"  y1="12" x2="5.5" y2="12"  stroke="#ff6b2b" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="18.5" y1="12" x2="23" y2="12"  stroke="#ff6b2b" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-name">Media<span>starr</span></div>
+      <div class="logo-sub">Ersteinrichtung · v5.0</div>
+    </div>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps" id="steps">
+    <div class="step active" id="s1"><div class="step-dot">1</div><span class="step-lbl">Language</span></div>
+    <div class="step"        id="s2"><div class="step-dot">2</div><span class="step-lbl">Instances</span></div>
+    <div class="step"        id="s3"><div class="step-dot">3</div><span class="step-lbl">Discord</span></div>
+    <div class="step"        id="s4"><div class="step-dot">4</div><span class="step-lbl">Done</span></div>
+  </div>
+
+  <!-- Pane 1: Language -->
+  <div id="pane-1">
+    <div class="card">
+      <div class="card-top">
+        <div class="top-accent" style="background:linear-gradient(90deg,var(--accent),var(--blue))"></div>
+        <div class="card-title" id="p1-title">Sprache wählen</div>
+        <div class="card-sub" id="p1-sub">Kann jederzeit im Dashboard geändert werden.</div>
+      </div>
+      <div class="card-body">
+        <div class="lang-grid">
+          <div class="lang-card selected" onclick="selectLang('de',this)">
+            <div class="lang-flag">🇩🇪</div>
+            <div class="lang-name">Deutsch</div>
+            <div class="lang-sub">German</div>
+          </div>
+          <div class="lang-card" onclick="selectLang('en',this)">
+            <div class="lang-flag">🇬🇧</div>
+            <div class="lang-name">English</div>
+            <div class="lang-sub">Englisch</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <div style="font-size:11px;color:var(--muted)">Schritt 1 von 2</div>
+        <button class="btn btn-accent" onclick="goTo(2)">Weiter →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pane 2: Instances -->
+  <div id="pane-2" style="display:none">
+    <div class="card">
+      <div class="card-top">
+        <div class="top-accent" style="background:linear-gradient(90deg,var(--blue),var(--accent))"></div>
+        <div class="card-title">Instanzen konfigurieren</div>
+        <div class="card-sub">
+          Füge beliebig viele Sonarr- und/oder Radarr-Instanzen hinzu.<br>
+          Mindestens eine Instanz ist erforderlich. Du kannst auch nur Sonarr <em>oder</em> nur Radarr verwenden.
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="inst-list" id="inst-list"><!-- filled by JS --></div>
+        <button class="add-btn" onclick="addInstance()">+ Instanz hinzufügen</button>
+        <div id="setup-errors" style="margin-top:12px;font-size:11px;color:var(--red);display:none"></div>
+      </div>
+      <div class="card-footer">
+        <button class="btn btn-ghost" onclick="goTo(1)" id="p2-back">← Back</button>
+        <button class="btn btn-accent" onclick="goToDiscord()" id="p2-next">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pane 3: Discord (optional) -->
+  <div id="pane-3" style="display:none">
+    <div class="card">
+      <div class="card-top">
+        <div class="top-accent" style="background:linear-gradient(90deg,#5865f2,#7289da)"></div>
+        <div class="card-title" id="dc-wiz-title">Discord notifications (optional)</div>
+        <div class="card-sub" id="dc-wiz-sub">
+          You can skip this and configure it later in Settings → Discord.<br>
+          Create a webhook: Server → Settings → Integrations → Webhooks → New Webhook → Copy URL.
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label class="label" id="dc-wiz-lbl-url">Webhook URL</label>
+          <input class="input" id="wiz-dc-url" type="password" placeholder="https://discord.com/api/webhooks/..." autocomplete="off"
+            oninput="discordUrl=this.value;document.getElementById('p3-test').style.display=this.value.trim()?'':'none'">
+          <div style="font-size:10px;color:var(--muted2);margin-top:4px" id="dc-wiz-hint">Leave blank to skip Discord for now.</div>
+        </div>
+        <div id="dc-wiz-events" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:11px;color:var(--green)" id="dc-wiz-ev1">🔍 Missing searched</span>
+              <div class="tgl on" id="wiz-tog-missing" onclick="this.className='tgl '+(this.className.includes('on')?'':'on')"></div>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:11px;color:var(--yellow)" id="dc-wiz-ev2">⬆ Upgrade searched</span>
+              <div class="tgl on" id="wiz-tog-upgrade" onclick="this.className='tgl '+(this.className.includes('on')?'':'on')"></div>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:11px;color:var(--red)" id="dc-wiz-ev3">🚫 Daily limit</span>
+              <div class="tgl on" id="wiz-tog-limit" onclick="this.className='tgl '+(this.className.includes('on')?'':'on')"></div>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:9px 12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:11px;color:var(--muted2)" id="dc-wiz-ev4">📡 Instance offline</span>
+              <div class="tgl on" id="wiz-tog-offline" onclick="this.className='tgl '+(this.className.includes('on')?'':'on')"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-footer" style="flex-wrap:wrap;gap:8px">
+        <button class="btn btn-ghost" onclick="goTo(2)" id="p3-back">← Back</button>
+        <button class="btn btn-test" onclick="testWizardDiscord()" id="p3-test" style="display:none">🔔 Test</button>
+        <span id="p3-test-msg" style="font-size:11px;display:none;align-self:center"></span>
+        <button class="btn btn-accent" id="finish-btn" onclick="finishSetup()">✓ Finish setup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pane 4: Done -->
+  <div id="pane-4" style="display:none">
+    <div class="card">
+      <div class="card-body" style="padding:32px 26px">
+        <div class="success-icon">✓</div>
+        <div id="done-title" style="font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">Alles eingerichtet!</div>
+        <div id="done-sub" style="text-align:center;color:var(--muted2);font-size:11px;margin-bottom:22px">Mediastarr startet und beginnt automatisch mit der Suche.</div>
+        <div class="summary-box" id="summary"></div>
+        <div style="text-align:center">
+          <button class="btn btn-accent" onclick="location.href='/'" style="padding:11px 26px">🚀 Zum Dashboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let lang = 'en';
+let instances = [];  // [{id(temp), type, name, url, api_key, tested, version}]
+let nextTempId = 1;
+let discordUrl = '';
+
+function selectLang(l, el) {
+  lang = l;
+  document.querySelectorAll('.lang-card').forEach(c => c.className = 'lang-card');
+  el.className = 'lang-card selected';
+  applyWizardLang();
+}
+function applyWizardLang() {
+  const isDE = lang === 'de';
+  const el = id => document.getElementById(id);
+  // Step labels
+  updateStepLabels();
+  // Pane 1 (Language)
+  const p1 = document.querySelector('#pane-1 .card-title');
+  if (el('p1-title')) el('p1-title').textContent = isDE ? 'Sprache wählen' : 'Choose language';
+  if (el('p1-sub'))   el('p1-sub').textContent   = isDE ? 'Kann jederzeit im Dashboard geändert werden.' : 'Can be changed any time in the dashboard.';
+  if (el('add-inst-btn')) el('add-inst-btn').textContent = isDE ? '+ Instanz hinzufügen' : '+ Add instance';
+  if (el('no-inst-msg')) el('no-inst-msg').textContent = isDE ? 'Keine Instanzen. Klicke auf "+ Instanz hinzufügen".' : 'No instances. Click "+ Add instance".';
+  const p1s = document.querySelector('#pane-1 .card-sub');
+  if (p1s) p1s.textContent = isDE ? 'Kann jederzeit im Dashboard geändert werden.' : 'Can be changed at any time in the dashboard.';
+  const p1step = document.querySelector('#pane-1 .card-footer span');
+  if (p1step) p1step.textContent = isDE ? 'Schritt 1 von 2' : 'Step 1 of 2';
+  const p1next = document.querySelector('#pane-1 .btn-accent');
+  if (p1next) p1next.textContent = isDE ? 'Weiter →' : 'Next →';
+  // Pane 2 (Instances)
+  const p2title = document.querySelector('#pane-2 .card-title');
+  if (p2title) p2title.textContent = isDE ? 'Instanzen konfigurieren' : 'Configure instances';
+  const p2sub = document.querySelector('#pane-2 .card-sub');
+  if (p2sub) p2sub.innerHTML = isDE
+    ? 'Füge beliebig viele Sonarr- und/oder Radarr-Instanzen hinzu.<br>Mindestens eine Instanz ist erforderlich. Du kannst auch nur Sonarr <em>oder</em> nur Radarr verwenden.'
+    : 'Add any number of Sonarr and/or Radarr instances.<br>At least one instance is required. You can also use only Sonarr <em>or</em> only Radarr.';
+  if (el('p2-back')) el('p2-back').textContent = isDE ? '← Zurück' : '← Back';
+  if (el('p2-next')) el('p2-next').textContent = isDE ? 'Weiter →' : 'Next →';
+  const addBtn = document.querySelector('.add-btn');
+  if (addBtn) addBtn.textContent = isDE ? '+ Instanz hinzufügen' : '+ Add instance';
+  // Pane 3 (Discord)
+  if (el('dc-wiz-title')) el('dc-wiz-title').textContent = isDE ? 'Discord Benachrichtigungen (optional)' : 'Discord notifications (optional)';
+  if (el('dc-wiz-sub'))   el('dc-wiz-sub').innerHTML = isDE
+    ? 'Kann später in Einstellungen → Discord konfiguriert werden.<br>Webhook erstellen: Server → Einstellungen → Integrationen → Webhooks.'
+    : 'Can be configured later in Settings → Discord.<br>Create webhook: Server → Settings → Integrations → Webhooks.';
+  if (el('dc-wiz-lbl-url')) el('dc-wiz-lbl-url').textContent = isDE ? 'Webhook URL' : 'Webhook URL';
+  if (el('dc-wiz-hint'))    el('dc-wiz-hint').textContent = isDE ? 'Leer lassen um Discord vorerst zu überspringen.' : 'Leave blank to skip Discord for now.';
+  if (el('dc-wiz-ev1'))     el('dc-wiz-ev1').textContent = isDE ? '🔍 Fehlend gesucht'    : '🔍 Missing searched';
+  if (el('dc-wiz-ev2'))     el('dc-wiz-ev2').textContent = isDE ? '⬆ Upgrade gesucht'    : '⬆ Upgrade searched';
+  if (el('dc-wiz-ev3'))     el('dc-wiz-ev3').textContent = isDE ? '🚫 Tageslimit'         : '🚫 Daily limit';
+  if (el('dc-wiz-ev4'))     el('dc-wiz-ev4').textContent = isDE ? '📡 Instanz offline'   : '📡 Instance offline';
+  if (el('p3-back'))        el('p3-back').textContent = isDE ? '← Zurück' : '← Back';
+  if (el('finish-btn'))     el('finish-btn').textContent = isDE ? '✓ Setup abschließen' : '✓ Finish setup';
+  if (el('done-title'))     el('done-title').textContent = isDE ? 'Alles eingerichtet!' : 'All set!';
+  if (el('done-sub'))       el('done-sub').textContent   = isDE
+    ? 'Mediastarr startet und beginnt automatisch mit der Suche.'
+    : 'Mediastarr is starting and will begin searching automatically.';
+  const goBtnP4 = document.querySelector('#pane-4 .btn-accent');
+  if (goBtnP4) goBtnP4.textContent = isDE ? '🚀 Zum Dashboard' : '🚀 Go to dashboard';
+  // Pane 4 (Done)
+  const doneTitle = document.querySelector('#pane-4 .card-body > div:first-child');
+  const goBtn = document.querySelector('#pane-4 .btn-accent');
+  if (goBtn) goBtn.textContent = isDE ? '🚀 Zum Dashboard' : '🚀 Go to dashboard';
+  // Instance card type select options
+  document.querySelectorAll('select[id^="type-select-"]').forEach(sel => {
+    [...sel.options].forEach(o => {
+      if (o.value==='sonarr') o.text = isDE ? '📺 Sonarr (Serien)' : '📺 Sonarr (Series)';
+      if (o.value==='radarr') o.text = isDE ? '🎬 Radarr (Filme)'  : '🎬 Radarr (Movies)';
+    });
+  });
+}
+
+function goTo(step) {
+  [1,2,3,4].forEach(i => {
+    const p = document.getElementById(`pane-${i}`);
+    if (p) p.style.display = 'none';
+  });
+  const pg = document.getElementById(`pane-${step}`);
+  if (pg) pg.style.display = '';
+  [1,2,3,4].forEach(i => {
+    const el = document.getElementById(`s${i}`);
+    if (!el) return;
+    el.className = 'step' + (i < step ? ' done' : i === step ? ' active' : '');
+    el.querySelector('.step-dot').textContent = i < step ? '✓' : i;
+  });
+  updateStepLabels();
+  applyWizardLang();
+}
+function updateStepLabels() {
+  const labels = lang === 'de'
+    ? ['Sprache','Instanzen','Discord','Fertig']
+    : ['Language','Instances','Discord','Done'];
+  [1,2,3,4].forEach(i => {
+    const el = document.getElementById(`s${i}`);
+    if (el) el.querySelector('.step-lbl').textContent = labels[i-1];
+  });
+}
+
+function addInstance(defaults = {}) {
+  const id = `tmp_${nextTempId++}`;
+  instances.push({id, type: defaults.type || 'sonarr', name: defaults.name || '',
+                  url: defaults.url || '', api_key: '', tested: false, version: ''});
+  renderInstances();
+}
+
+function removeInstance(id) {
+  instances = instances.filter(i => i.id !== id);
+  renderInstances();
+}
+
+function updateInst(id, field, value) {
+  const inst = instances.find(i => i.id === id);
+  if (inst) { inst[field] = value; if (field !== 'api_key') inst.tested = false; }
+}
+
+function renderInstances() {
+  const el = document.getElementById('inst-list');
+  if (!instances.length) {
+    el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted2);font-size:12px">
+      Keine Instanzen.</div>`;
+    return;
+  }
+  el.innerHTML = instances.map((inst,idx) => `
+    <div class="inst-card" id="ic-${inst.id}">
+      <div class="inst-card-header">
+        <span class="inst-type-badge badge-${inst.type}">${inst.type === 'sonarr' ? '📺 Sonarr' : '🎬 Radarr'}</span>
+        <span class="inst-name">${inst.name || `Instanz ${idx+1}`}</span>
+        <span class="inst-status ${inst.tested ? 'ok' : 'pending'}" id="status-${inst.id}">
+          ${inst.tested ? `✓ v${inst.version}` : '○ nicht getestet'}
+        </span>
+        <button class="btn btn-danger" style="padding:3px 8px;font-size:10px" onclick="removeInstance('${inst.id}')">✕</button>
+      </div>
+      <div class="inst-body">
+        <div class="field">
+          <label class="label">Name</label>
+          <input class="input" value="${inst.name}" placeholder="${inst.type === 'sonarr' ? 'z.B. Sonarr 4K' : 'z.B. Radarr HD'}"
+            oninput="updateInst('${inst.id}','name',this.value)" style="border-color:${inst.name ? 'rgba(61,230,139,.4)' : ''}">
+        </div>
+        <div class="field">
+          <label class="label">Typ</label>
+          <select class="input" onchange="updateInst('${inst.id}','type',this.value);renderInstances()">
+            <option value="sonarr" ${inst.type==='sonarr'?'selected':''}>Sonarr (Serien)</option>
+            <option value="radarr" ${inst.type==='radarr'?'selected':''}>Radarr (Filme)</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label class="label">URL</label>
+          <input class="input" value="${inst.url}" placeholder="${inst.type==='sonarr'?'http://sonarr:8989':'http://radarr:7878'}"
+            oninput="updateInst('${inst.id}','url',this.value)">
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label class="label">API Key <span style="color:var(--muted)">· Settings → General → Security</span></label>
+          <div class="field-row">
+            <input class="input" type="password" placeholder="32-stelliger API Key" autocomplete="off"
+              oninput="updateInst('${inst.id}','api_key',this.value)">
+            <button class="btn btn-test" onclick="testInst('${inst.id}')">🔌 Test</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function testInst(id) {
+  const inst = instances.find(i => i.id === id);
+  if (!inst) return;
+  const statusEl = document.getElementById(`status-${id}`);
+  statusEl.textContent = '⟳ teste...'; statusEl.className = 'inst-status pending';
+  try {
+    const r = await fetch('/api/setup/ping', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type: inst.type, url: inst.url, api_key: inst.api_key})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      inst.tested = true; inst.version = d.version;
+      statusEl.textContent = `✓ v${d.version}`; statusEl.className = 'inst-status ok';
+    } else {
+      inst.tested = false;
+      statusEl.textContent = `✗ ${d.msg||'Fehler'}`; statusEl.className = 'inst-status fail';
+    }
+  } catch { statusEl.textContent = '✗ Netzwerkfehler'; statusEl.className = 'inst-status fail'; }
+}
+
+function goToDiscord() {
+  if (instances.length === 0) {
+    const errEl = document.getElementById('setup-errors');
+    errEl.textContent = lang === 'de' ? 'Mindestens eine Instanz erforderlich.' : 'At least one instance required.';
+    errEl.style.display = 'block'; return;
+  }
+  document.getElementById('setup-errors').style.display = 'none';
+  goTo(3);
+}
+
+async function testWizardDiscord() {
+  const url = document.getElementById('wiz-dc-url')?.value?.trim();
+  const msg = document.getElementById('p3-test-msg');
+  if (!url) return;
+  if (msg) { msg.style.display='block'; msg.style.color='var(--muted2)'; msg.textContent='⟳ Testing...'; }
+  // Temporarily save URL then test
+  try {
+    const saveR = await fetch('/api/config', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({discord:{enabled:true, webhook_url:url}})
+    });
+    const testR = await fetch('/api/discord/test', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const d = await testR.json();
+    if (msg) {
+      msg.style.color = d.ok ? 'var(--green)' : 'var(--red)';
+      msg.textContent = d.ok
+        ? (lang==='de' ? '✓ Gesendet! Prüfe Discord.' : '✓ Sent! Check Discord.')
+        : (lang==='de' ? '✗ Fehler — URL prüfen.' : '✗ Error — check URL.');
+    }
+  } catch { if (msg) { msg.style.color='var(--red)'; msg.textContent='✗ Network error'; } }
+}
+
+async function finishSetup() {
+  const errEl = document.getElementById('setup-errors');
+  errEl.style.display = 'none';
+  if (instances.length === 0) {
+    errEl.textContent = lang === 'de' ? 'Mindestens eine Instanz erforderlich.' : 'At least one instance required.';
+    errEl.style.display = 'block'; return;
+  }
+  const btn = document.getElementById('finish-btn');
+  btn.disabled = true;
+  btn.textContent = lang === 'de' ? '⏳ Speichere...' : '⏳ Saving...';
+  const dcUrl = document.getElementById('wiz-dc-url')?.value?.trim() || '';
+  const payload = {
+    language: lang,
+    instances: instances.map(inst => ({
+      id: inst.id, type: inst.type, name: inst.name,
+      url: inst.url, api_key: inst.api_key, enabled: true
+    })),
+    discord: dcUrl ? {
+      enabled: true,
+      webhook_url: dcUrl,
+      notify_missing: document.getElementById('wiz-tog-missing')?.className.includes('on') ?? true,
+      notify_upgrade: document.getElementById('wiz-tog-upgrade')?.className.includes('on') ?? true,
+      notify_limit:   document.getElementById('wiz-tog-limit')?.className.includes('on') ?? true,
+      notify_offline: document.getElementById('wiz-tog-offline')?.className.includes('on') ?? true,
+      notify_cooldown: true,
+      rate_limit_cooldown: 5,
+    } : undefined,
+  };
+  try {
+    const r = await fetch('/api/setup/complete', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (d.ok) { buildSummary(); goTo(4); }
+    else {
+      errEl.innerHTML = (d.errors||['Fehler']).join('<br>');
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = '✓ Setup abschließen';
+    }
+  } catch { btn.disabled = false; btn.textContent = '✓ Setup abschließen'; }
+}
+
+function buildSummary() {
+  const rows = [
+    {key:'Sprache', val: lang === 'de' ? '🇩🇪 Deutsch' : '🇬🇧 English'},
+    ...instances.map(i => ({
+      key: i.type === 'sonarr' ? '📺 ' + i.name : '🎬 ' + i.name,
+      val: i.tested ? `Online (v${i.version})` : 'Konfiguriert'
+    }))
+  ];
+  document.getElementById('summary').innerHTML = rows.map(r => `
+    <div class="sum-row">
+      <span class="sum-key">${r.key}</span>
+      <span class="sum-val"><span class="dot-ok"></span>${r.val}</span>
+    </div>`).join('');
+}
+
+// Init: select EN, apply labels, add default instance
+(function init() {
+  // Select EN card and apply all labels
+  document.querySelectorAll('.lang-card').forEach(c => c.className = 'lang-card');
+  const enCard = document.getElementById('lc-en');
+  if (enCard) enCard.className = 'lang-card selected';
+  lang = 'en';
+  applyWizardLang();
+  addInstance({type:'sonarr', name:'Sonarr', url:'http://sonarr:8989'});
+applyWizardLang();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+services:
+  mediastarr:
+    image: kroeberd/mediastarr:latest
+    container_name: mediastarr
+    restart: unless-stopped
+    ports:
+      - "7979:7979"
+    volumes:
+      - /mnt/user/appdata/mediastarr:/data
