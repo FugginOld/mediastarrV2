@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <title>Mediastarr — Setup</title>
+  <title>mediastarrv2 — Setup</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -244,7 +244,7 @@
       <div class="card-body" style="padding:32px 26px">
         <div class="success-icon">✓</div>
         <div id="done-title" style="font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">Alles eingerichtet!</div>
-        <div id="done-sub" style="text-align:center;color:var(--muted2);font-size:11px;margin-bottom:22px">Mediastarr startet und beginnt automatisch mit der Suche.</div>
+        <div id="done-sub" style="text-align:center;color:var(--muted2);font-size:11px;margin-bottom:22px">mediastarrv2 startet und beginnt automatisch mit der Suche.</div>
         <div class="summary-box" id="summary"></div>
         <div style="text-align:center">
           <button class="btn btn-accent" onclick="location.href='/'" style="padding:11px 26px">🚀 Zum Dashboard</button>
@@ -357,8 +357,8 @@ function applyWizardLang() {
   if (el('finish-btn'))     el('finish-btn').textContent = isDE ? '✓ Setup abschließen' : '✓ Finish setup';
   if (el('done-title'))     el('done-title').textContent = isDE ? 'Alles eingerichtet!' : 'All set!';
   if (el('done-sub'))       el('done-sub').textContent   = isDE
-    ? 'Mediastarr startet und beginnt automatisch mit der Suche.'
-    : 'Mediastarr is starting and will begin searching automatically.';
+    ? 'mediastarrv2 startet und beginnt automatisch mit der Suche.'
+    : 'mediastarrv2 is starting and will begin searching automatically.';
   const goBtnP4 = document.querySelector('#pane-4 .btn-accent');
   if (goBtnP4) goBtnP4.textContent = isDE ? '🚀 Zum Dashboard' : '🚀 Go to dashboard';
   // Pane 4 (Done)
@@ -697,3 +697,6 @@ applyWizardLang();
 </script>
 </body>
 </html>
+
+
+

@@ -1,5 +1,5 @@
-"""
-db.py — SQLite persistence layer for Mediastarr v4
+﻿"""
+db.py — SQLite persistence layer for mediastarrv2 v4
 All search history is stored here instead of JSON.
 
 Schema includes: service, item_type, item_id, title, release_year,
@@ -234,3 +234,6 @@ def clear_all() -> int:
         cur = conn.execute("DELETE FROM search_history")
         conn.commit()
     return cur.rowcount
+
+
+

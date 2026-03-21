@@ -1,7 +1,7 @@
-"""
-Mediastarr v6 — main.py
+﻿"""
+mediastarrv2 v6 — main.py
 Multi-instance Sonarr & Radarr — independent project, NOT affiliated with Huntarr.
-github.com/kroeberd/mediastarr
+github.com/FugginOld/mediastarrV2
 
 New in v6:
   - Jitter: random ±N minutes added to each hunt interval (configurable)
@@ -97,7 +97,7 @@ def discord_send(event_type: str, title: str, description: str,
         return
 
     color = DISCORD_COLORS.get(event_type, DISCORD_COLORS["info"])
-    footer_text = f"Mediastarr v6 · {instance_name}" if instance_name else "Mediastarr v6"
+    footer_text = f"mediastarrv2 v6 · {instance_name}" if instance_name else "mediastarrv2 v6"
     embed = {
         "title":       safe_str(title, 256),
         "description": safe_str(description, 2048),
@@ -139,7 +139,7 @@ def discord_send_stats():
     cycles = STATE.get("cycle_count", 0)
 
     if lang == "de":
-        title = "📊 Mediastarr Statistiken"
+        title = "📊 mediastarrv2 Statistiken"
         desc  = f"Tagesbericht — {now_local().strftime('%d.%m.%Y %H:%M')}"
         f_today  = "Heute"
         f_total  = "Gesamt"
@@ -147,7 +147,7 @@ def discord_send_stats():
         f_insts  = "Aktive Instanzen"
         f_limit  = f"{today} / {limit if limit else '∞'}"
     else:
-        title = "📊 Mediastarr Statistics"
+        title = "📊 mediastarrv2 Statistics"
         desc  = f"Daily report — {now_local().strftime('%Y-%m-%d %H:%M')}"
         f_today  = "Today"
         f_total  = "Total"
@@ -201,7 +201,7 @@ MSGS = {
         "db_pruned":        "{n} abgelaufene Einträge bereinigt",
         "skipped_offline":  "Übersprungen – Offline oder deaktiviert",
         "auto_start":       "Hunt-Schleife gestartet",
-        "app_start":        "Mediastarr v6.0.2 gestartet",
+        "app_start":        "mediastarrv2 v6.0.2 gestartet",
         "setup_required":   "Einrichtung erforderlich – http://localhost:7979/setup",
         "missing":          "Fehlend",
         "upgrade":          "Upgrade",
@@ -215,7 +215,7 @@ MSGS = {
         "db_pruned":        "{n} expired entries pruned",
         "skipped_offline":  "Skipped – offline or disabled",
         "auto_start":       "Hunt loop started",
-        "app_start":        "Mediastarr v6.0.2 started",
+        "app_start":        "mediastarrv2 v6.0.2 started",
         "setup_required":   "Setup required – http://localhost:7979/setup",
         "missing":          "Missing",
         "upgrade":          "Upgrade",
@@ -233,7 +233,7 @@ def msg(key: str, **kwargs) -> str:
 # ─── Paths ───────────────────────────────────────────────────────────────────
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 CFG_FILE = DATA_DIR / "config.json"
-DB_FILE  = DATA_DIR / "mediastarr.db"
+DB_FILE  = DATA_DIR / "mediastarrv2.db"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 db.init(DB_FILE)
 
@@ -1202,16 +1202,16 @@ def api_discord_test():
         return jsonify({"ok":False,"error":"Kein Webhook URL konfiguriert" if CONFIG.get("language","de")=="de" else "No webhook URL configured"}),400
     lang = CONFIG.get("language","de")
     if lang == "de":
-        label = "🔔 Mediastarr Test"
-        desc  = "Dies ist eine Test-Benachrichtigung von Mediastarr v6.\nWenn du das siehst, ist der Webhook korrekt konfiguriert."
+        label = "🔔 mediastarrv2 Test"
+        desc  = "Dies ist eine Test-Benachrichtigung von mediastarrv2 v6.\nWenn du das siehst, ist der Webhook korrekt konfiguriert."
         f_status  = "Status"
         f_ok      = "✓ Verbunden"
         f_ver     = "Version"
         f_inst    = "Instanzen"
         f_enabled = "Benachrichtigungen"
     else:
-        label = "🔔 Mediastarr Test"
-        desc  = "This is a test notification from Mediastarr v6.\nIf you see this, the webhook is configured correctly."
+        label = "🔔 mediastarrv2 Test"
+        desc  = "This is a test notification from mediastarrv2 v6.\nIf you see this, the webhook is configured correctly."
         f_status  = "Status"
         f_ok      = "✓ Connected"
         f_ver     = "Version"
@@ -1284,3 +1284,6 @@ start_runtime()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=7979, debug=False)
+
+
+

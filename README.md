@@ -1,15 +1,15 @@
-<div align="center">
+﻿<div align="center">
 
-<img src="https://raw.githubusercontent.com/kroeberd/mediastarr/refs/heads/main/logos/logo.png" width="128" alt="Mediastarr Logo"/>
+<img src="https://raw.githubusercontent.com/FugginOld/mediastarrV2/refs/heads/main/logos/logo.png" width="128" alt="mediastarrv2 Logo"/>
 
-# Mediastarr
+# mediastarrv2
 
 **EN** · [DE](#de)
 
-[![GitHub](https://img.shields.io/badge/GitHub-kroeberd%2Fmediastarr-orange?logo=github)](https://github.com/kroeberd/mediastarr)
-[![Docker Hub](https://img.shields.io/docker/pulls/kroeberd/mediastarr?label=Docker%20Pulls&logo=docker)](https://hub.docker.com/r/kroeberd/mediastarr)
+[![GitHub](https://img.shields.io/badge/GitHub-FugginOld%2FmediastarrV2-orange?logo=github)](https://github.com/FugginOld/mediastarrV2)
+[![Docker Hub](https://img.shields.io/docker/pulls/fugginold/mediastarrv2?label=Docker%20Pulls&logo=docker)](https://hub.docker.com/r/fugginold/mediastarrv2)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v6.0.2-ff6b2b)](https://github.com/kroeberd/mediastarr/releases)
+[![Version](https://img.shields.io/badge/Version-v6.0.2-ff6b2b)](https://github.com/FugginOld/mediastarrV2/releases)
 [![Discord](https://img.shields.io/badge/Discord-Join-5865f2?logo=discord&logoColor=white)](https://discord.gg/8Vb9cj4ksv)
 
 </div>
@@ -45,8 +45,8 @@
 ## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/kroeberd/mediastarr.git
-cd mediastarr && mkdir data
+git clone https://github.com/FugginOld/mediastarrV2.git
+cd mediastarrv2 && mkdir data
 docker compose up -d
 open http://localhost:7979
 ```
@@ -55,19 +55,19 @@ open http://localhost:7979
 
 ```yaml
 services:
-  mediastarr:
-    image: kroeberd/mediastarr:latest
-    container_name: mediastarr
+  mediastarrv2:
+    image: fugginold/mediastarrv2:latest
+    container_name: mediastarrv2
     restart: unless-stopped
     ports:
       - "7979:7979"
     volumes:
-      - /mnt/user/appdata/mediastarr:/data
+      - /mnt/user/appdata/mediastarrv2:/data
     environment:
       - MEDIASTARR_PASSWORD=change-me
 ```
 
-If you expose Mediastarr beyond a trusted LAN, set `MEDIASTARR_PASSWORD` and place it behind a reverse proxy or firewall.
+If you expose mediastarrv2 beyond a trusted LAN, set `MEDIASTARR_PASSWORD` and place it behind a reverse proxy or firewall.
 
 When `MEDIASTARR_PASSWORD` is set, the dashboard requires login and browser write requests are CSRF-protected automatically.
 
@@ -75,7 +75,7 @@ When `MEDIASTARR_PASSWORD` is set, the dashboard requires login and browser writ
 
 Community Apps template: [`mediastarr.xml`](mediastarr.xml)
 
-Manual: Repository `kroeberd/mediastarr:latest`, Port `7979:7979`, Volume `/mnt/user/appdata/mediastarr` → `/data`.
+Manual: Repository `fugginold/mediastarrv2:latest`, Port `7979:7979`, Volume `/mnt/user/appdata/mediastarrv2` → `/data`.
 
 Optional: set `MEDIASTARR_PASSWORD` in the template to require login for the WebUI and API.
 
@@ -173,8 +173,8 @@ GET  /api/timezones                # Available timezones
 ## 🚀 Schnellstart
 
 ```bash
-git clone https://github.com/kroeberd/mediastarr.git
-cd mediastarr && mkdir data
+git clone https://github.com/FugginOld/mediastarrV2.git
+cd mediastarrv2 && mkdir data
 docker compose up -d
 # → http://localhost:7979
 ```
@@ -185,19 +185,19 @@ Der Setup-Wizard öffnet sich automatisch.
 
 ```yaml
 services:
-  mediastarr:
-    image: kroeberd/mediastarr:latest
-    container_name: mediastarr
+  mediastarrv2:
+    image: fugginold/mediastarrv2:latest
+    container_name: mediastarrv2
     restart: unless-stopped
     ports:
       - "7979:7979"
     volumes:
-      - /mnt/user/appdata/mediastarr:/data
+      - /mnt/user/appdata/mediastarrv2:/data
     environment:
       - MEDIASTARR_PASSWORD=change-me
 ```
 
-Wenn Mediastarr außerhalb eines vertrauenswürdigen LANs erreichbar ist, setze `MEDIASTARR_PASSWORD` und nutze einen Reverse Proxy oder eine Firewall davor.
+Wenn mediastarrv2 außerhalb eines vertrauenswürdigen LANs erreichbar ist, setze `MEDIASTARR_PASSWORD` und nutze einen Reverse Proxy oder eine Firewall davor.
 
 Wenn `MEDIASTARR_PASSWORD` gesetzt ist, ist ein Login für das Dashboard erforderlich und schreibende Browser-Anfragen sind automatisch per CSRF geschützt.
 
@@ -218,9 +218,9 @@ Das Community Apps Template liegt in [`mediastarr.xml`](mediastarr.xml).
 
 **Manuell hinzufügen:**
 1. Unraid → Docker → Add Container → Advanced View
-2. Repository: `kroeberd/mediastarr:latest`
+2. Repository: `fugginold/mediastarrv2:latest`
 3. Port: `7979:7979`
-4. Volume: `/mnt/user/appdata/mediastarr` → `/data`
+4. Volume: `/mnt/user/appdata/mediastarrv2` → `/data`
 5. Apply → http://UNRAID-IP:7979
 
 Optional: `MEDIASTARR_PASSWORD` setzen, um WebUI und API per Login zu schützen.
@@ -320,5 +320,8 @@ GET  /api/timezones                # Verfügbare Zeitzonen
 ---
 
 <div align="center">
-MIT License · <a href="https://github.com/kroeberd/mediastarr">github.com/kroeberd/mediastarr</a> · <a href="https://discord.gg/8Vb9cj4ksv">Discord</a>
+MIT License · <a href="https://github.com/FugginOld/mediastarrV2">github.com/FugginOld/mediastarrV2</a> · <a href="https://discord.gg/8Vb9cj4ksv">Discord</a>
 </div>
+
+
+

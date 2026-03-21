@@ -1,13 +1,13 @@
-# 🎯 Mediastarr
+﻿# 🎯 mediastarrv2
 
 **Automated media search for Sonarr & Radarr** — finds missing content and quality upgrades on a configurable schedule. Web dashboard, first-run wizard, SQLite history, multi-instance support, Discord notifications and 3 themes.
 
 > **Note:** Independent project, built from scratch. Not affiliated with Huntarr.
 
-[![GitHub](https://img.shields.io/badge/GitHub-kroeberd%2Fmediastarr-orange?logo=github)](https://github.com/kroeberd/mediastarr)
-[![Docker Hub](https://img.shields.io/docker/pulls/kroeberd/mediastarr?label=Docker%20Pulls&logo=docker)](https://hub.docker.com/r/kroeberd/mediastarr)
+[![GitHub](https://img.shields.io/badge/GitHub-FugginOld%2FmediastarrV2-orange?logo=github)](https://github.com/FugginOld/mediastarrV2)
+[![Docker Hub](https://img.shields.io/docker/pulls/fugginold/mediastarrv2?label=Docker%20Pulls&logo=docker)](https://hub.docker.com/r/fugginold/mediastarrv2)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v6.0.2-ff6b2b)](https://github.com/kroeberd/mediastarr/releases)
+[![Version](https://img.shields.io/badge/Version-v6.0.2-ff6b2b)](https://github.com/FugginOld/mediastarrV2/releases)
 
 ---
 
@@ -34,8 +34,8 @@
 ## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/kroeberd/mediastarr.git
-cd mediastarr && mkdir data
+git clone https://github.com/FugginOld/mediastarrV2.git
+cd mediastarrv2 && mkdir data
 docker compose up -d
 open http://localhost:7979
 ```
@@ -46,19 +46,19 @@ open http://localhost:7979
 
 ```yaml
 services:
-  mediastarr:
-    image: kroeberd/mediastarr:latest
-    container_name: mediastarr
+  mediastarrv2:
+    image: fugginold/mediastarrv2:latest
+    container_name: mediastarrv2
     restart: unless-stopped
     ports:
       - "7979:7979"
     volumes:
-      - /mnt/user/appdata/mediastarr:/data
+      - /mnt/user/appdata/mediastarrv2:/data
     environment:
       - MEDIASTARR_PASSWORD=change-me
 ```
 
-If you expose Mediastarr outside a trusted LAN, set `MEDIASTARR_PASSWORD` and place it behind a reverse proxy or firewall.
+If you expose mediastarrv2 outside a trusted LAN, set `MEDIASTARR_PASSWORD` and place it behind a reverse proxy or firewall.
 
 When `MEDIASTARR_PASSWORD` is set, the dashboard requires login and browser write requests are CSRF-protected automatically.
 
@@ -68,7 +68,7 @@ When `MEDIASTARR_PASSWORD` is set, the dashboard requires login and browser writ
 
 Community Apps template: [`mediastarr.xml`](mediastarr.xml)
 
-Manual: Repository `kroeberd/mediastarr:latest`, Port `7979:7979`, Volume `/mnt/user/appdata/mediastarr` → `/data`.
+Manual: Repository `fugginold/mediastarrv2:latest`, Port `7979:7979`, Volume `/mnt/user/appdata/mediastarrv2` → `/data`.
 
 Optional: set `MEDIASTARR_PASSWORD` in the template to require login for the WebUI and API.
 
@@ -136,4 +136,7 @@ GET  /api/timezones                # Available timezones
 
 ---
 
-*MIT License — [github.com/kroeberd/mediastarr](https://github.com/kroeberd/mediastarr)*
+*MIT License — [github.com/FugginOld/mediastarrV2](https://github.com/FugginOld/mediastarrV2)*
+
+
+

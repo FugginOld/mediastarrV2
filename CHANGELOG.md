@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 ## [6.0.2] — 2025
 
@@ -59,3 +59,6 @@
 - Release year stored in DB
 - 3 themes: Dark / Light / OLED Black
 - Migration path for existing databases
+
+
+

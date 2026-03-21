@@ -1,23 +1,23 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <Container version="2">
 
   <!-- ══════════════════════════════════════════════════════
-       Mediastarr — Automated media search for Sonarr & Radarr
-       https://github.com/kroeberd/mediastarr
+       mediastarrv2 — Automated media search for Sonarr & Radarr
+       https://github.com/FugginOld/mediastarrV2
        ══════════════════════════════════════════════════════ -->
 
-  <Name>Mediastarr</Name>
-  <Repository>kroeberd/mediastarr:latest</Repository>
-  <Registry>https://hub.docker.com/r/kroeberd/mediastarr</Registry>
-  <GitHub>https://github.com/kroeberd/mediastarr</GitHub>
+  <Name>mediastarrv2</Name>
+  <Repository>fugginold/mediastarrv2:latest</Repository>
+  <Registry>https://hub.docker.com/r/fugginold/mediastarrv2</Registry>
+  <GitHub>https://github.com/FugginOld/mediastarrV2</GitHub>
   <Branch>main</Branch>
 
   <Network>bridge</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
 
-  <Support>https://github.com/kroeberd/mediastarr/issues</Support>
-  <Project>https://github.com/kroeberd/mediastarr</Project>
+  <Support>https://github.com/FugginOld/mediastarrV2/issues</Support>
+  <Project>https://github.com/FugginOld/mediastarrV2</Project>
   <Overview>
     Automated missing-content and quality-upgrade search for Sonarr and Radarr.
 
@@ -40,8 +40,8 @@
   </Overview>
   <Category>Downloaders: MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:7979]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/kroeberd/mediastarr/main/mediastarr.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/kroeberd/mediastarr/main/static/icon.png</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/FugginOld/mediastarrV2/main/mediastarr.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/FugginOld/mediastarrV2/main/static/icon.png</Icon>
   <ExtraParams>--restart unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>
@@ -60,7 +60,7 @@
     Target="7979"
     Default="7979"
     Mode="tcp"
-    Description="Port for the Mediastarr web interface."
+    Description="Port for the mediastarrv2 web interface."
     Type="Port"
     Display="always"
     Required="true"
@@ -70,13 +70,13 @@
   <Config
     Name="Data Directory"
     Target="/data"
-    Default="/mnt/user/appdata/mediastarr"
+    Default="/mnt/user/appdata/mediastarrv2"
     Mode="rw"
     Description="Stores config.json and the SQLite search history database. Must be a persistent path — without this, the setup wizard restarts on every container restart."
     Type="Path"
     Display="always"
     Required="true"
-    Mask="false">/mnt/user/appdata/mediastarr</Config>
+    Mask="false">/mnt/user/appdata/mediastarrv2</Config>
 
   <!-- ══════════════════════════════════════════════════════
        Optional environment variables.
@@ -143,10 +143,13 @@
     Target="MEDIASTARR_PASSWORD"
     Default=""
     Mode=""
-    Description="Optional: if set, the Mediastarr dashboard and API require login with this password. Browser write actions are CSRF-protected. Recommended when the WebUI is reachable beyond a trusted LAN."
+    Description="Optional: if set, the mediastarrv2 dashboard and API require login with this password. Browser write actions are CSRF-protected. Recommended when the WebUI is reachable beyond a trusted LAN."
     Type="Variable"
     Display="advanced"
     Required="false"
     Mask="true"></Config>
 
 </Container>
+
+
+

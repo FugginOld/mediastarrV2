@@ -1,4 +1,4 @@
-name: Build & Push — GHCR + Docker Hub
+﻿name: Build & Push — GHCR + Docker Hub
 
 on:
   push:
@@ -24,8 +24,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/kroeberd/mediastarr
-            kroeberd/mediastarr
+            ghcr.io/fugginold/mediastarrv2
+            fugginold/mediastarrv2
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
@@ -72,6 +72,9 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: kroeberd/mediastarr
+          repository: fugginold/mediastarrv2
           readme-filepath: ./README.md
           short-description: "Automated media search for Sonarr & Radarr — multi-instance, Discord, SQLite, DE/EN"
+
+
+

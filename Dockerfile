@@ -1,11 +1,11 @@
-FROM python:3.12-slim
+﻿FROM python:3.12-slim
 
-LABEL org.opencontainers.image.title="Mediastarr"
+LABEL org.opencontainers.image.title="mediastarrv2"
 LABEL org.opencontainers.image.description="Automated missing-content and quality-upgrade search for Sonarr & Radarr"
 LABEL org.opencontainers.image.version="6.0"
-LABEL org.opencontainers.image.source="https://github.com/kroeberd/mediastarr"
+LABEL org.opencontainers.image.source="https://github.com/FugginOld/mediastarrV2"
 LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.authors="kroeberd"
+LABEL org.opencontainers.image.authors="FugginOld"
 
 WORKDIR /app
 
@@ -24,3 +24,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 ENV DATA_DIR=/data
 
 CMD ["gunicorn", "--bind", "0.0.0.0:7979", "--workers", "1", "--threads", "4", "--chdir", "/app", "app.main:app"]
+
+
+

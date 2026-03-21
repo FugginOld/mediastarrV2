@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="de" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <title>Mediastarr</title>
+  <title>mediastarrv2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -316,7 +316,7 @@
       <div class="nav-item" onclick="showPage('history')" data-page="history"><span class="nav-icon">🗄</span><span class="nav-label">Verlauf</span></div>
       <div class="nav-item" onclick="showPage('log')" data-page="log"><span class="nav-icon">≡</span><span class="nav-label">Aktivitätslog</span><span class="nav-badge" id="logBadge">0</span></div>
       <div class="nav-item" onclick="showPage('stats')" data-page="stats"><span class="nav-icon">📊</span><span class="nav-label">Statistiken</span></div>
-      <a href="https://github.com/kroeberd/mediastarr" target="_blank" rel="noopener noreferrer" style="text-decoration:none">
+      <a href="https://github.com/FugginOld/mediastarrV2" target="_blank" rel="noopener noreferrer" style="text-decoration:none">
         <div class="nav-item" style="margin-top:4px;border-top:1px solid var(--border);padding-top:10px">
           <span class="nav-icon">⑇</span><span class="nav-label" style="font-size:11px">GitHub</span>
           <span style="font-size:9px;color:var(--muted)">↗</span>
@@ -343,7 +343,7 @@
         <button class="btn logout-btn" type="submit">⇦ Logout</button>
       </form>
       {% endif %}
-      <div class="version-tag"><a href="https://github.com/kroeberd/mediastarr" target="_blank" rel="noopener noreferrer" style="text-decoration:none"><span style="background:rgba(255,107,43,.15);border:1px solid rgba(255,107,43,.4);border-radius:4px;padding:2px 8px;color:#ff6b2b;font-size:10px;font-weight:600">v6.0.2</span></a></div>
+      <div class="version-tag"><a href="https://github.com/FugginOld/mediastarrV2" target="_blank" rel="noopener noreferrer" style="text-decoration:none"><span style="background:rgba(255,107,43,.15);border:1px solid rgba(255,107,43,.4);border-radius:4px;padding:2px 8px;color:#ff6b2b;font-size:10px;font-weight:600">v6.0.2</span></a></div>
     </div>
   </aside>
 
@@ -1947,3 +1947,6 @@ window.fetch = (resource, options = {}) => {
 
 </body>
 </html>
+
+
+
