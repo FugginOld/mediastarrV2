@@ -23,4 +23,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 
 ENV DATA_DIR=/data
 
-CMD ["python", "app/main.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:7979", "--workers", "1", "--threads", "4", "--chdir", "/app", "app.main:app"]

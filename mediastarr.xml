@@ -34,6 +34,7 @@
     - Dark / Light / OLED themes
     - German and English UI + logs
     - First-run browser wizard — no config file editing required
+    - Optional dashboard/API password protection + CSRF-protected browser writes
 
     Independent project, not affiliated with Huntarr.
   </Overview>
@@ -50,6 +51,7 @@
   <Requires>
     At least one running Sonarr or Radarr instance reachable from the container.
     Recommended: same Docker network as your Arr stack.
+    Setup connection tests accept only local/private/internal Sonarr/Radarr targets.
   </Requires>
 
   <!-- ── Port ────────────────────────────────────────────── -->
@@ -135,5 +137,16 @@
     Display="advanced"
     Required="false"
     Mask="false">/data</Config>
+
+  <Config
+    Name="Dashboard Password"
+    Target="MEDIASTARR_PASSWORD"
+    Default=""
+    Mode=""
+    Description="Optional: if set, the Mediastarr dashboard and API require login with this password. Browser write actions are CSRF-protected. Recommended when the WebUI is reachable beyond a trusted LAN."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="true"></Config>
 
 </Container>

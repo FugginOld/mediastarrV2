@@ -14,15 +14,19 @@ New in v6:
   - Language switch now persists and reloads sidebar correctly
   - Instance management fully in main settings (no wizard redirect needed)
 """
-import os, re, json, time, logging, threading, requests, random, string, zoneinfo, socket
+import os, re, json, time, logging, threading, requests, random, string, zoneinfo, socket, secrets, ipaddress
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
-from flask import Flask, render_template, jsonify, request, redirect
+from flask import Flask, render_template, jsonify, request, redirect, session, url_for
 from collections import deque
 import db
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
+app.config["SECRET_KEY"] = os.environ.get("MEDIASTARR_SESSION_SECRET") or secrets.token_hex(32)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("MEDIASTARR_SESSION_SECURE", "").strip().lower() in {"1", "true", "yes", "on"}
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -38,6 +42,7 @@ NAME_RE             = re.compile(r'^[A-Za-z0-9 \-_äöüÄÖÜß]{1,40}$')
 URL_MAX_LEN         = 256
 MAX_INSTANCES       = 20
 MIN_INTERVAL_SEC    = 900   # 15 minutes absolute minimum
+AUTH_PASSWORD       = os.environ.get("MEDIASTARR_PASSWORD", "").strip()
 
 # ─── Discord Webhook ─────────────────────────────────────────────────────────
 DISCORD_COLORS = {
@@ -310,7 +315,42 @@ def load_config() -> dict:
 
 def save_config(cfg: dict):
     tmp = CFG_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(cfg, indent=2)); tmp.replace(CFG_FILE)
+    tmp.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    tmp.replace(CFG_FILE)
+    try:
+        os.chmod(CFG_FILE, 0o600)
+    except OSError:
+        pass
+
+
+def auth_enabled() -> bool:
+    return bool(AUTH_PASSWORD)
+
+
+def is_authenticated() -> bool:
+    return not auth_enabled() or session.get("auth_ok") is True
+
+
+def sanitize_next_url(target: str) -> str:
+    if not target or not target.startswith("/") or target.startswith("//"):
+        return "/"
+    return target
+
+
+def get_csrf_token() -> str:
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_hex(32)
+        session["csrf_token"] = token
+    return token
+
+
+@app.context_processor
+def inject_template_context():
+    return {
+        "auth_enabled": auth_enabled(),
+        "csrf_token": get_csrf_token(),
+    }
 
 
 def _bootstrap_host() -> str:
@@ -365,14 +405,68 @@ def _ensure_inst_stats():
 _ensure_inst_stats()
 
 # ─── Validation ───────────────────────────────────────────────────────────────
-def validate_url(url: str):
+def validate_url(url: str, max_len: int = URL_MAX_LEN):
     if not url or not isinstance(url,str): return False,"URL fehlt"
-    if len(url) > URL_MAX_LEN: return False,"URL zu lang"
+    if len(url) > max_len: return False,"URL zu lang"
     try: p = urlparse(url)
     except: return False,"URL ungültig"
     if p.scheme not in ALLOWED_SCHEMES: return False,f"Schema '{p.scheme}' nicht erlaubt"
     if not p.hostname: return False,"Kein Hostname"
     return True,""
+
+
+def validate_discord_webhook_url(url: str):
+    if not url or not isinstance(url, str):
+        return False, "URL fehlt"
+    return validate_url(url, 512)
+
+
+def validate_csrf_request() -> bool:
+    expected = session.get("csrf_token", "")
+    if not expected:
+        return False
+    provided = request.headers.get("X-CSRF-Token", "")
+    if not provided:
+        provided = request.form.get("csrf_token", "")
+    return bool(provided) and secrets.compare_digest(provided, expected)
+
+
+def is_private_host(hostname: str) -> bool:
+    host = hostname.strip().lower()
+    if not host:
+        return False
+    if host == "localhost" or "." not in host:
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+        return ip.is_private or ip.is_loopback or ip.is_link_local
+    except ValueError:
+        pass
+    try:
+        resolved = {info[4][0] for info in socket.getaddrinfo(host, None)}
+    except OSError:
+        return False
+    if not resolved:
+        return False
+    try:
+        return all(
+            ipaddress.ip_address(addr).is_private
+            or ipaddress.ip_address(addr).is_loopback
+            or ipaddress.ip_address(addr).is_link_local
+            for addr in resolved
+        )
+    except ValueError:
+        return False
+
+
+def validate_internal_service_url(url: str):
+    ok, err = validate_url(url)
+    if not ok:
+        return False, err
+    parsed = urlparse(url)
+    if not parsed.hostname or not is_private_host(parsed.hostname):
+        return False, "Ziel muss auf ein lokales oder internes System zeigen"
+    return True, ""
 
 def validate_api_key(key: str):
     if not key or not isinstance(key,str): return False,"API Key fehlt"
@@ -405,6 +499,28 @@ def sec_headers(r):
     if request.path.startswith("/api/"):
         r.headers["Cache-Control"]="no-store"; r.headers["Pragma"]="no-cache"
     return r
+
+
+@app.before_request
+def require_auth():
+    if not auth_enabled():
+        pass
+    if request.path.startswith("/static/"):
+        return None
+    if request.endpoint in {"login_page", "logout"}:
+        pass
+    elif auth_enabled() and not is_authenticated():
+        if request.path.startswith("/api/"):
+            return jsonify({"ok": False, "error": "Authentifizierung erforderlich"}), 401
+        return redirect(url_for("login_page", next=sanitize_next_url(request.full_path or request.path)))
+    if request.method in {"POST", "PATCH", "DELETE"} and request.endpoint not in {"logout"}:
+        if not validate_csrf_request():
+            if request.path.startswith("/api/"):
+                return jsonify({"ok": False, "error": "CSRF validation failed"}), 400
+            return "CSRF validation failed", 400
+    if request.endpoint == "logout" and not validate_csrf_request():
+        return "CSRF validation failed", 400
+    return None
 
 @app.errorhandler(400)
 def e400(e): return jsonify({"ok":False,"error":"Ungültige Anfrage"}),400
@@ -772,10 +888,30 @@ def hunt_loop():
 @app.route("/")
 def index():
     if not CONFIG.get("setup_complete"): return redirect("/setup")
-    return render_template("index.html")
+    return render_template("index.html", auth_enabled=auth_enabled())
 
 @app.route("/setup")
-def setup_page(): return render_template("setup.html")
+def setup_page(): return render_template("setup.html", auth_enabled=auth_enabled())
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login_page():
+    if not auth_enabled():
+        return redirect("/")
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        if secrets.compare_digest(password, AUTH_PASSWORD):
+            session["auth_ok"] = True
+            target = sanitize_next_url(request.form.get("next", "/"))
+            return redirect(target)
+        return render_template("login.html", error="Invalid password", next_path=sanitize_next_url(request.form.get("next", "/")))
+    return render_template("login.html", error="", next_path=sanitize_next_url(request.args.get("next", "/")))
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return redirect(url_for("login_page"))
 
 # ── Setup API ─────────────────────────────────────────────────────────────────
 @app.route("/api/setup/ping", methods=["POST"])
@@ -784,7 +920,7 @@ def api_setup_ping():
     itype = safe_str(d.get("type",""), 10)
     if itype not in ALLOWED_TYPES: return jsonify({"ok":False,"msg":"Unbekannter Typ"}),400
     url = safe_str(d.get("url",""), URL_MAX_LEN)
-    ok, err = validate_url(url)
+    ok, err = validate_internal_service_url(url)
     if not ok: return jsonify({"ok":False,"msg":f"URL ungültig: {err}"}),400
     key = safe_str(d.get("api_key",""), 128)
     ok, err = validate_api_key(key)
@@ -830,14 +966,16 @@ def api_setup_complete():
     if isinstance(dc_in, dict) and dc_in.get("webhook_url","").strip():
         dc = CONFIG.setdefault("discord", {})
         url = safe_str(dc_in["webhook_url"], 512).strip()
-        if url.startswith(("http://","https://")):
-            dc["webhook_url"] = url
-            dc["enabled"]     = True
-            for k in ("notify_missing","notify_upgrade","notify_cooldown",
-                      "notify_limit","notify_offline"):
-                if k in dc_in: dc[k] = bool(dc_in[k])
-            if "rate_limit_cooldown" in dc_in:
-                dc["rate_limit_cooldown"] = clamp_int(dc_in.get("rate_limit_cooldown", 5), 1, 300, 5)
+        ok, err = validate_discord_webhook_url(url)
+        if not ok:
+            return jsonify({"ok": False, "errors": [f"Discord Webhook URL: {err}"]}), 400
+        dc["webhook_url"] = url
+        dc["enabled"]     = True
+        for k in ("notify_missing","notify_upgrade","notify_cooldown",
+                  "notify_limit","notify_offline"):
+            if k in dc_in: dc[k] = bool(dc_in[k])
+        if "rate_limit_cooldown" in dc_in:
+            dc["rate_limit_cooldown"] = clamp_int(dc_in.get("rate_limit_cooldown", 5), 1, 300, 5)
 
     save_config(CONFIG); _ensure_inst_stats()
     global hunt_thread
@@ -1006,7 +1144,10 @@ def api_config():
             dc["rate_limit_cooldown"] = clamp_int(dc_in.get("rate_limit_cooldown", 5), 1, 300, 5)
         if "webhook_url" in dc_in:
             url = safe_str(dc_in["webhook_url"], 512).strip()
-            if url == "" or url.startswith(("http://","https://")):
+            ok, err = (True, "") if url == "" else validate_discord_webhook_url(url)
+            if not ok:
+                return jsonify({"ok":False,"error":f"Discord Webhook URL: {err}"}),400
+            if url == "" or ok:
                 dc["webhook_url"] = url
     save_config(CONFIG); return jsonify({"ok":True})
 
@@ -1118,7 +1259,16 @@ def api_discord_stats_now():
 
 
 # ─── Startup ──────────────────────────────────────────────────────────────────
-if __name__ == "__main__":
+_startup_lock = threading.Lock()
+_startup_done = False
+
+
+def start_runtime():
+    global _startup_done, hunt_thread
+    with _startup_lock:
+        if _startup_done:
+            return
+        _startup_done = True
     log_act("System", msg("app_start"), "", "info")
     if CONFIG.get("setup_complete"):
         _ensure_inst_stats(); ping_all()
@@ -1127,4 +1277,10 @@ if __name__ == "__main__":
             log_act("System", msg("auto_start"), "", "info")
     else:
         log_act("System", msg("setup_required"), "", "warning")
+
+
+start_runtime()
+
+
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=7979, debug=False)

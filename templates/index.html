@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
   <title>Mediastarr</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -96,6 +97,8 @@
     .lang-btn { flex: 1; padding: 4px; border-radius: 4px; text-align: center; font-size: 11px; cursor: pointer; color: var(--muted2); transition: all 0.15s; }
     .lang-btn.active { background: var(--border2); color: var(--text); }
     .version-tag { font-size: 10px; color: var(--muted); text-align: center; }
+    .logout-form { margin-bottom: 6px; }
+    .logout-btn { width:100%; font-size:10px; padding:5px; color:var(--muted2); }
 
     /* ══════════ MAIN ══════════ */
     .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -334,6 +337,12 @@
         <div class="lang-btn" onclick="setLang('en')" id="lang-en">🇬🇧 EN</div>
       </div>
       <button class="btn" style="width:100%;font-size:10px;padding:5px;margin-bottom:6px;color:var(--muted2)" onclick="resetSetup()" data-i18n="btn_reset_setup">⚙ Setup zurücksetzen</button>
+      {% if auth_enabled %}
+      <form class="logout-form" action="/logout" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn logout-btn" type="submit">⇦ Logout</button>
+      </form>
+      {% endif %}
       <div class="version-tag"><a href="https://github.com/kroeberd/mediastarr" target="_blank" rel="noopener noreferrer" style="text-decoration:none"><span style="background:rgba(255,107,43,.15);border:1px solid rgba(255,107,43,.4);border-radius:4px;padding:2px 8px;color:#ff6b2b;font-size:10px;font-weight:600">v6.0.2</span></a></div>
     </div>
   </aside>
@@ -1923,5 +1932,18 @@ syncNewInstUrlHint();
 setInterval(fetchState, 4000);
 setInterval(() => { if (document.getElementById('page-stats')?.style.display!=='none') loadStats(); }, 30000);
 </script>
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+const nativeFetch = window.fetch.bind(window);
+window.fetch = (resource, options = {}) => {
+  const request = new Request(resource, options);
+  const url = new URL(request.url, window.location.origin);
+  if (url.origin === window.location.origin && ['POST', 'PATCH', 'DELETE'].includes(request.method.toUpperCase())) {
+    const headers = new Headers(request.headers);
+    headers.set('X-CSRF-Token', CSRF_TOKEN);
+    return nativeFetch(new Request(request, { headers }));
+  }
+  return nativeFetch(request);
+};
+
 </body>
 </html>

@@ -40,7 +40,7 @@
 | 🌐 Multilingual | German & English (UI + logs + Discord messages) |
 | 🎨 3 themes | Dark / Light / OLED Black |
 | 🕐 Timezone | Configurable — all timestamps in local time |
-| 🔒 Secure | Whitelists, input validation, API keys never in state |
+| 🔒 Secure | Input validation, hardened headers, optional dashboard/API password, CSRF-protected write requests |
 
 ## 🚀 Quick Start
 
@@ -63,13 +63,21 @@ services:
       - "7979:7979"
     volumes:
       - /mnt/user/appdata/mediastarr:/data
+    environment:
+      - MEDIASTARR_PASSWORD=change-me
 ```
+
+If you expose Mediastarr beyond a trusted LAN, set `MEDIASTARR_PASSWORD` and place it behind a reverse proxy or firewall.
+
+When `MEDIASTARR_PASSWORD` is set, the dashboard requires login and browser write requests are CSRF-protected automatically.
 
 ## 📦 Unraid
 
 Community Apps template: [`mediastarr.xml`](mediastarr.xml)
 
 Manual: Repository `kroeberd/mediastarr:latest`, Port `7979:7979`, Volume `/mnt/user/appdata/mediastarr` → `/data`.
+
+Optional: set `MEDIASTARR_PASSWORD` in the template to require login for the WebUI and API.
 
 ## 🔔 Discord Notifications
 
@@ -87,6 +95,12 @@ Settings → Discord:
 **Rate-limit protection:** Configurable minimum gap between same-type events (default 5 sec) — prevents Discord 429 errors.
 
 **Join the community:** [discord.gg/8Vb9cj4ksv](https://discord.gg/8Vb9cj4ksv)
+
+## 🔐 Security Notes
+
+- If `MEDIASTARR_PASSWORD` is set, dashboard access requires login and browser write requests use CSRF protection.
+- The setup connection test accepts only local/private/internal Sonarr or Radarr targets. Public internet hosts are rejected intentionally.
+- `config.json` in your data directory contains your Arr API keys. Treat the `/data` path as sensitive.
 
 ## ⚙️ Settings
 
@@ -153,7 +167,8 @@ GET  /api/timezones                # Available timezones
 | 🌐 Mehrsprachig | Deutsch & Englisch (UI + Logs + Discord-Nachrichten) |
 | 🎨 3 Themes | Dark / Light / OLED Black |
 | 🕐 Zeitzone | Konfigurierbar — alle Timestamps lokal |
-| 🔒 Sicher | Whitelists, Input-Validierung, API-Keys nie im State |
+| 🔒 Sicher | Input-Validierung, Security-Header, optionales Passwort für Dashboard/API |
+| 🛡 Schutz | Schreibende Browser-Anfragen sind mit CSRF-Schutz abgesichert |
 
 ## 🚀 Schnellstart
 
@@ -178,7 +193,13 @@ services:
       - "7979:7979"
     volumes:
       - /mnt/user/appdata/mediastarr:/data
+    environment:
+      - MEDIASTARR_PASSWORD=change-me
 ```
+
+Wenn Mediastarr außerhalb eines vertrauenswürdigen LANs erreichbar ist, setze `MEDIASTARR_PASSWORD` und nutze einen Reverse Proxy oder eine Firewall davor.
+
+Wenn `MEDIASTARR_PASSWORD` gesetzt ist, ist ein Login für das Dashboard erforderlich und schreibende Browser-Anfragen sind automatisch per CSRF geschützt.
 
 Für den Zugriff auf Sonarr/Radarr im gleichen Docker-Netz:
 
@@ -202,6 +223,8 @@ Das Community Apps Template liegt in [`mediastarr.xml`](mediastarr.xml).
 4. Volume: `/mnt/user/appdata/mediastarr` → `/data`
 5. Apply → http://UNRAID-IP:7979
 
+Optional: `MEDIASTARR_PASSWORD` setzen, um WebUI und API per Login zu schützen.
+
 ## 🔔 Discord-Benachrichtigungen
 
 Einstellungen → Discord:
@@ -218,6 +241,12 @@ Einstellungen → Discord:
 **Rate-Limit-Schutz:** Konfigurierbarer Mindestabstand zwischen gleichen Events (Standard 5 Sek.) — verhindert Discord 429-Fehler.
 
 **Community:** [discord.gg/8Vb9cj4ksv](https://discord.gg/8Vb9cj4ksv)
+
+## 🔐 Sicherheitshinweise
+
+- Wenn `MEDIASTARR_PASSWORD` gesetzt ist, ist ein Login nötig und schreibende Browser-Anfragen sind per CSRF abgesichert.
+- Der Verbindungs-Test im Setup akzeptiert nur lokale/private/interne Sonarr- oder Radarr-Ziele. Öffentliche Hosts werden absichtlich abgewiesen.
+- `config.json` im Datenverzeichnis enthält deine Arr-API-Keys. Behandle den `/data`-Pfad als sensibel.
 
 ## 🔢 Mehrere Instanzen
 

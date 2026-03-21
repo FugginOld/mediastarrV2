@@ -9,15 +9,22 @@ import sqlite3
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional
 
 _lock = threading.RLock()
-_conn = None
+_conn: Optional[sqlite3.Connection] = None
 _db_path = None
 
 
 def _require_init():
     if _conn is None:
         raise RuntimeError("Database is not initialized. Call init(db_path) first.")
+
+
+def _get_conn() -> sqlite3.Connection:
+    _require_init()
+    assert _conn is not None
+    return _conn
 
 
 def init(db_path: Path):
@@ -40,10 +47,10 @@ def _connect():
 
 def _migrate():
     """Create schema and run non-destructive migrations on existing DBs."""
-    _require_init()
+    conn = _get_conn()
     with _lock:
         # Step 1: base table (release_year NOT included here so ALTER works on old DBs)
-        _conn.execute("""
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS search_history (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 service         TEXT    NOT NULL,
@@ -57,15 +64,15 @@ def _migrate():
                 UNIQUE(service, item_type, item_id)
             )
         """)
-        _conn.commit()
+        conn.commit()
 
         # Step 2: add columns introduced in v4 (idempotent ALTER TABLE)
         existing_cols = {row[1] for row in
-                         _conn.execute("PRAGMA table_info(search_history)")}
+                         conn.execute("PRAGMA table_info(search_history)")}
         if "release_year" not in existing_cols:
-            _conn.execute(
+            conn.execute(
                 "ALTER TABLE search_history ADD COLUMN release_year INTEGER")
-            _conn.commit()
+            conn.commit()
 
         # Step 3: indexes — individual execute() calls (not executescript) to avoid
         # the implicit COMMIT that executescript() performs, which can confuse
@@ -76,21 +83,21 @@ def _migrate():
             "CREATE INDEX IF NOT EXISTS idx_item        ON search_history(service, item_type, item_id)",
             "CREATE INDEX IF NOT EXISTS idx_year        ON search_history(release_year)",
         ]:
-            _conn.execute(stmt)
-        _conn.commit()
+            conn.execute(stmt)
+        conn.commit()
 
 
 # ─── Write ────────────────────────────────────────────────────────────────────
 
 def upsert_search(service: str, item_type: str, item_id: int,
                   title: str, result: str = "triggered",
-                  last_changed_at: str = None,
-                  release_year: int = None):
+                  last_changed_at: Optional[str] = None,
+                  release_year: Optional[int] = None):
     """Insert or update a search record. Increments search_count on conflict."""
-    _require_init()
+    conn = _get_conn()
     now = datetime.utcnow().isoformat()
     with _lock:
-        _conn.execute("""
+        conn.execute("""
             INSERT INTO search_history
                 (service, item_type, item_id, title, release_year,
                  searched_at, result, search_count, last_changed_at)
@@ -104,7 +111,7 @@ def upsert_search(service: str, item_type: str, item_id: int,
                 last_changed_at = COALESCE(excluded.last_changed_at, last_changed_at)
         """, (service, item_type, item_id, title, release_year,
               now, result, last_changed_at))
-        _conn.commit()
+        conn.commit()
 
 
 # ─── Read ─────────────────────────────────────────────────────────────────────
@@ -112,10 +119,10 @@ def upsert_search(service: str, item_type: str, item_id: int,
 def is_on_cooldown(service: str, item_type: str, item_id: int,
                    cooldown_days: int) -> bool:
     """True if this item was searched within the cooldown window."""
-    _require_init()
+    conn = _get_conn()
     cutoff = (datetime.utcnow() - timedelta(days=cooldown_days)).isoformat()
     with _lock:
-        row = _conn.execute("""
+        row = conn.execute("""
             SELECT searched_at FROM search_history
             WHERE service=? AND item_type=? AND item_id=? AND searched_at > ?
         """, (service, item_type, item_id, cutoff)).fetchone()
@@ -126,7 +133,7 @@ def get_history(limit: int = 300, service: str = "",
                 only_cooldown: bool = False,
                 cooldown_days: int = 7) -> list:
     """Return recent history rows as plain dicts, newest first."""
-    _require_init()
+    conn = _get_conn()
     cutoff = (datetime.utcnow() - timedelta(days=cooldown_days)).isoformat()
     wheres, params = [], []
 
@@ -139,7 +146,7 @@ def get_history(limit: int = 300, service: str = "",
     params.append(limit)
 
     with _lock:
-        rows = _conn.execute(f"""
+        rows = conn.execute(f"""
             SELECT *,
                    (searched_at > ?) AS on_cooldown
             FROM search_history
@@ -152,10 +159,10 @@ def get_history(limit: int = 300, service: str = "",
 
 def count_today() -> int:
     """Number of real searches triggered today (UTC date)."""
-    _require_init()
+    conn = _get_conn()
     today = datetime.utcnow().strftime("%Y-%m-%d")
     with _lock:
-        row = _conn.execute("""
+        row = conn.execute("""
             SELECT COUNT(*) AS n FROM search_history
             WHERE searched_at LIKE ? AND result IN ('triggered', 'dry_run')
         """, (today + "%",)).fetchone()
@@ -163,18 +170,18 @@ def count_today() -> int:
 
 
 def total_count() -> int:
-    _require_init()
+    conn = _get_conn()
     with _lock:
-        row = _conn.execute(
+        row = conn.execute(
             "SELECT COUNT(*) AS n FROM search_history").fetchone()
     return row["n"] if row else 0
 
 
 def stats_by_service() -> dict:
     """Per-service summary totals."""
-    _require_init()
+    conn = _get_conn()
     with _lock:
-        rows = _conn.execute("""
+        rows = conn.execute("""
             SELECT service,
                    COUNT(*)             AS total,
                    SUM(search_count)    AS total_attempts,
@@ -187,9 +194,9 @@ def stats_by_service() -> dict:
 
 def year_stats() -> list:
     """Count of searched items grouped by release_year (for charts)."""
-    _require_init()
+    conn = _get_conn()
     with _lock:
-        rows = _conn.execute("""
+        rows = conn.execute("""
             SELECT release_year, COUNT(*) AS count
             FROM search_history
             WHERE release_year IS NOT NULL
@@ -203,27 +210,27 @@ def year_stats() -> list:
 
 def purge_expired(cooldown_days: int) -> int:
     """Remove rows older than cooldown so they can be re-searched next time."""
-    _require_init()
+    conn = _get_conn()
     cutoff = (datetime.utcnow() - timedelta(days=cooldown_days)).isoformat()
     with _lock:
-        cur = _conn.execute(
+        cur = conn.execute(
             "DELETE FROM search_history WHERE searched_at < ?", (cutoff,))
-        _conn.commit()
+        conn.commit()
     return cur.rowcount
 
 
 def clear_service(service: str) -> int:
-    _require_init()
+    conn = _get_conn()
     with _lock:
-        cur = _conn.execute(
+        cur = conn.execute(
             "DELETE FROM search_history WHERE service=?", (service,))
-        _conn.commit()
+        conn.commit()
     return cur.rowcount
 
 
 def clear_all() -> int:
-    _require_init()
+    conn = _get_conn()
     with _lock:
-        cur = _conn.execute("DELETE FROM search_history")
-        _conn.commit()
+        cur = conn.execute("DELETE FROM search_history")
+        conn.commit()
     return cur.rowcount
