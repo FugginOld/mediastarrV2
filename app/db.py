@@ -1,5 +1,5 @@
 ﻿"""
-db.py — SQLite persistence layer for mediastarrv2 v4
+db.py — SQLite persistence layer for MediaHunter v1.0 Beta
 All search history is stored here instead of JSON.
 
 Schema includes: service, item_type, item_id, title, release_year,
@@ -86,6 +86,32 @@ def _migrate():
             conn.execute(stmt)
         conn.commit()
 
+        # Step 4: media_queue – persistent list of items awaiting dispatch (queue model)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS media_queue (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                service       TEXT    NOT NULL,
+                arr_type      TEXT    NOT NULL,
+                item_type     TEXT    NOT NULL,
+                item_id       INTEGER NOT NULL,
+                series_id     INTEGER,
+                season_number INTEGER,
+                title         TEXT    NOT NULL DEFAULT '',
+                release_dt    TEXT,
+                release_year  INTEGER,
+                last_modified TEXT,
+                added_at      TEXT    NOT NULL,
+                UNIQUE(service, item_type, item_id)
+            )
+        """)
+        for stmt in [
+            "CREATE INDEX IF NOT EXISTS idx_queue_service ON media_queue(service, arr_type)",
+            "CREATE INDEX IF NOT EXISTS idx_queue_release ON media_queue(release_dt)",
+            "CREATE INDEX IF NOT EXISTS idx_queue_type    ON media_queue(service, item_type)",
+        ]:
+            conn.execute(stmt)
+        conn.commit()
+
 
 # ─── Write ────────────────────────────────────────────────────────────────────
 
@@ -158,13 +184,13 @@ def get_history(limit: int = 300, service: str = "",
 
 
 def count_today() -> int:
-    """Number of successfully downloaded/grabbed searches today (UTC date)."""
+    """Number of dispatched/downloaded searches today (UTC date)."""
     conn = _get_conn()
     today = datetime.utcnow().strftime("%Y-%m-%d")
     with _lock:
         row = conn.execute("""
             SELECT COUNT(*) AS n FROM search_history
-            WHERE searched_at LIKE ? AND result IN ('downloaded')
+            WHERE searched_at LIKE ? AND result IN ('dispatched', 'downloaded')
         """, (today + "%",)).fetchone()
     return row["n"] if row else 0
 
@@ -232,6 +258,105 @@ def clear_all() -> int:
     conn = _get_conn()
     with _lock:
         cur = conn.execute("DELETE FROM search_history")
+        conn.commit()
+    return cur.rowcount
+
+
+# ─── Queue (media_queue table) ────────────────────────────────────────────────
+
+def queue_upsert(service: str, arr_type: str, item_type: str, item_id: int,
+                 title: str, series_id=None, season_number=None,
+                 release_dt: Optional[str] = None,
+                 release_year: Optional[int] = None,
+                 last_modified: Optional[str] = None):
+    """Insert or update a queue entry. Does not reset existing entries."""
+    conn = _get_conn()
+    now = datetime.utcnow().isoformat()
+    with _lock:
+        conn.execute("""
+            INSERT INTO media_queue
+                (service, arr_type, item_type, item_id, series_id, season_number,
+                 title, release_dt, release_year, last_modified, added_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(service, item_type, item_id) DO UPDATE SET
+                title         = excluded.title,
+                series_id     = COALESCE(excluded.series_id,     series_id),
+                season_number = COALESCE(excluded.season_number, season_number),
+                release_dt    = COALESCE(excluded.release_dt,    release_dt),
+                release_year  = COALESCE(excluded.release_year,  release_year),
+                last_modified = COALESCE(excluded.last_modified, last_modified)
+        """, (service, arr_type, item_type, item_id, series_id, season_number,
+              title, release_dt, release_year, last_modified, now))
+        conn.commit()
+
+
+def queue_get_pending(service: str, arr_type: str, cooldown_days: int,
+                      limit: int = 500) -> list:
+    """Items that are released and not recently dispatched/downloaded."""
+    conn = _get_conn()
+    today  = datetime.utcnow().strftime("%Y-%m-%d")
+    cutoff = (datetime.utcnow() - timedelta(days=cooldown_days)).isoformat()
+    with _lock:
+        rows = conn.execute("""
+            SELECT q.* FROM media_queue q
+            WHERE q.service  = ?
+              AND q.arr_type = ?
+              AND (q.release_dt IS NULL OR q.release_dt <= ?)
+              AND NOT EXISTS (
+                  SELECT 1 FROM search_history sh
+                  WHERE sh.service   = q.service
+                    AND sh.item_type = q.item_type
+                    AND sh.item_id   = q.item_id
+                    AND sh.searched_at > ?
+              )
+            ORDER BY q.release_dt ASC NULLS LAST
+            LIMIT ?
+        """, (service, arr_type, today, cutoff, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def queue_count(service: str = "", arr_type: str = "", item_type: str = "") -> int:
+    """Count queue entries, optionally filtered."""
+    conn = _get_conn()
+    wheres, params = [], []
+    if service:   wheres.append("service = ?");   params.append(service)
+    if arr_type:  wheres.append("arr_type = ?");  params.append(arr_type)
+    if item_type: wheres.append("item_type = ?"); params.append(item_type)
+    where = ("WHERE " + " AND ".join(wheres)) if wheres else ""
+    with _lock:
+        return conn.execute(
+            f"SELECT COUNT(*) FROM media_queue {where}", params).fetchone()[0]
+
+
+def queue_remove_stale(service: str, item_type: str, current_ids: set) -> int:
+    """Remove queue rows for a service+item_type no longer present in Arr."""
+    if not current_ids:  # safety: never delete everything on empty scan result
+        return 0
+    conn = _get_conn()
+    with _lock:
+        rows = conn.execute(
+            "SELECT item_id FROM media_queue WHERE service = ? AND item_type = ?",
+            (service, item_type)).fetchall()
+        stale = [r[0] for r in rows if r[0] not in current_ids]
+        if not stale:
+            return 0
+        placeholders = ",".join("?" * len(stale))
+        conn.execute(
+            f"DELETE FROM media_queue WHERE service = ? AND item_type = ? "
+            f"AND item_id IN ({placeholders})",
+            [service, item_type, *stale])
+        conn.commit()
+    return len(stale)
+
+
+def queue_clear(service: str = "") -> int:
+    """Delete all queue entries, optionally for a single instance."""
+    conn = _get_conn()
+    with _lock:
+        if service:
+            cur = conn.execute("DELETE FROM media_queue WHERE service = ?", (service,))
+        else:
+            cur = conn.execute("DELETE FROM media_queue")
         conn.commit()
     return cur.rowcount
 

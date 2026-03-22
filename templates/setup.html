@@ -1,9 +1,11 @@
 ﻿<!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <title>mediastarrv2 — Setup</title>
+  <title>MediaHunter — Setup</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='icon.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -15,10 +17,11 @@
     .g2{width:500px;height:500px;bottom:-200px;right:-100px;background:var(--blue)}
     .wizard{position:relative;z-index:10;width:100%;max-width:600px}
     .logo-wrap{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:28px}
-    .logo-mark{width:44px;height:44px;border-radius:11px;background:rgba(255,107,43,.15);border:1px solid rgba(255,107,43,.3);display:flex;align-items:center;justify-content:center}
-    .logo-name{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:800;color:#fff}
+    .logo-mark{width:72px;height:72px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;border-radius:16px;border:1px solid rgba(255,107,43,.24);background:linear-gradient(180deg,rgba(255,107,43,.11),rgba(77,156,255,.06));box-shadow:0 16px 36px rgba(0,0,0,.22)}
+    .logo-mark img{width:100%;height:100%;object-fit:cover;object-position:center 28%;display:block;transform:scale(1.02)}
+    .logo-name{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:800;color:#fff;line-height:1}
     .logo-name span{color:var(--accent)}
-    .logo-sub{font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+    .logo-sub{font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-top:6px}
     .steps{display:flex;align-items:center;margin-bottom:24px}
     .step{display:flex;align-items:center;gap:7px;flex:1}
     .step:not(:last-child)::after{content:'';flex:1;height:1px;background:var(--border2);margin:0 4px;transition:background .3s}
@@ -107,19 +110,11 @@
   <!-- Logo -->
   <div class="logo-wrap">
     <div class="logo-mark">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="10" stroke="#ff6b2b" stroke-width="1.6" fill="none"/>
-        <circle cx="12" cy="12" r="5"  stroke="#ff6b2b" stroke-width="1.6" fill="none"/>
-        <circle cx="12" cy="12" r="2"  fill="#ff6b2b"/>
-        <line x1="12" y1="1"  x2="12" y2="5.5"  stroke="#ff6b2b" stroke-width="1.6" stroke-linecap="round"/>
-        <line x1="12" y1="18.5" x2="12" y2="23"  stroke="#ff6b2b" stroke-width="1.6" stroke-linecap="round"/>
-        <line x1="1"  y1="12" x2="5.5" y2="12"  stroke="#ff6b2b" stroke-width="1.6" stroke-linecap="round"/>
-        <line x1="18.5" y1="12" x2="23" y2="12"  stroke="#ff6b2b" stroke-width="1.6" stroke-linecap="round"/>
-      </svg>
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="MediaHunter logo">
     </div>
     <div>
-      <div class="logo-name">Media<span>starr</span></div>
-      <div class="logo-sub">Ersteinrichtung · v6.0.2</div>
+      <div class="logo-name">Media<span>Hunter</span></div>
+      <div class="logo-sub">Initial setup · v1.0 Beta</div>
     </div>
   </div>
 
@@ -136,26 +131,21 @@
     <div class="card">
       <div class="card-top">
         <div class="top-accent" style="background:linear-gradient(90deg,var(--accent),var(--blue))"></div>
-        <div class="card-title" id="p1-title">Sprache wählen</div>
-        <div class="card-sub" id="p1-sub">Kann jederzeit im Dashboard geändert werden.</div>
+        <div class="card-title" id="p1-title">Choose language</div>
+        <div class="card-sub" id="p1-sub">Can be changed any time in the dashboard.</div>
       </div>
       <div class="card-body">
-        <div class="lang-grid">
-          <div class="lang-card selected" id="lc-de" onclick="selectLang('de',this)">
-            <div class="lang-flag">🇩🇪</div>
-            <div class="lang-name">Deutsch</div>
-            <div class="lang-sub">German</div>
-          </div>
-          <div class="lang-card" id="lc-en" onclick="selectLang('en',this)">
+        <div class="lang-grid" style="grid-template-columns:1fr">
+          <div class="lang-card selected" id="lc-en">
             <div class="lang-flag">🇬🇧</div>
             <div class="lang-name">English</div>
-            <div class="lang-sub">Englisch</div>
+            <div class="lang-sub">Only available language</div>
           </div>
         </div>
       </div>
       <div class="card-footer">
-        <div style="font-size:11px;color:var(--muted)">Schritt 1 von 4</div>
-        <button class="btn btn-accent" onclick="goTo(2)">Weiter →</button>
+        <div style="font-size:11px;color:var(--muted)">Step 1 of 4</div>
+        <button class="btn btn-accent" onclick="goTo(2)">Next →</button>
       </div>
     </div>
   </div>
@@ -165,15 +155,15 @@
     <div class="card">
       <div class="card-top">
         <div class="top-accent" style="background:linear-gradient(90deg,var(--blue),var(--accent))"></div>
-        <div class="card-title">Instanzen konfigurieren</div>
+        <div class="card-title">Configure instances</div>
         <div class="card-sub">
-          Füge beliebig viele Sonarr- und/oder Radarr-Instanzen hinzu.<br>
-          Mindestens eine Instanz ist erforderlich. Du kannst auch nur Sonarr <em>oder</em> nur Radarr verwenden.
+          Add any number of Sonarr and/or Radarr instances.<br>
+          At least one instance is required. You can also use only Sonarr <em>or</em> only Radarr.
         </div>
       </div>
       <div class="card-body">
         <div class="inst-list" id="inst-list"><!-- filled by JS --></div>
-        <button class="add-btn" onclick="addInstance()">+ Instanz hinzufügen</button>
+        <button class="add-btn" onclick="addInstance()">+ Add instance</button>
         <div id="setup-errors" style="margin-top:12px;font-size:11px;color:var(--red);display:none"></div>
       </div>
       <div class="card-footer">
@@ -243,11 +233,11 @@
     <div class="card">
       <div class="card-body" style="padding:32px 26px">
         <div class="success-icon">✓</div>
-        <div id="done-title" style="font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">Alles eingerichtet!</div>
-        <div id="done-sub" style="text-align:center;color:var(--muted2);font-size:11px;margin-bottom:22px">mediastarrv2 startet und beginnt automatisch mit der Suche.</div>
+        <div id="done-title" style="font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">All set!</div>
+        <div id="done-sub" style="text-align:center;color:var(--muted2);font-size:11px;margin-bottom:22px">mediahunter is starting and will begin searching automatically.</div>
         <div class="summary-box" id="summary"></div>
         <div style="text-align:center">
-          <button class="btn btn-accent" onclick="location.href='/'" style="padding:11px 26px">🚀 Zum Dashboard</button>
+          <button class="btn btn-accent" onclick="location.href='/'" style="padding:11px 26px">🚀 Go to dashboard</button>
         </div>
       </div>
     </div>
@@ -283,19 +273,7 @@ function escHtml(v) {
 }
 
 function localizeServerMsg(msg) {
-  const text = String(msg || '');
-  if (lang === 'de') return text;
-  return text
-    .replace('Unbekannter Typ', 'Unknown type')
-    .replace('URL ungültig:', 'Invalid URL:')
-    .replace('URL fehlt', 'URL is missing')
-    .replace('URL zu lang', 'URL is too long')
-    .replace('Kein Hostname', 'Missing hostname')
-    .replace('API Key fehlt', 'API key is missing')
-    .replace('Ungültiges Format', 'Invalid format')
-    .replace('Verbindung fehlgeschlagen', 'Connection failed')
-    .replace('Fehler beim Speichern.', 'Failed to save.')
-    .replace('Mindestens eine Instanz erforderlich', 'At least one instance required');
+  return String(msg || '');
 }
 
 function getInstallHost() {
@@ -309,67 +287,60 @@ function defaultArrUrl(type) {
 }
 
 function selectLang(l, el) {
-  lang = l;
+  lang = 'en';
   document.querySelectorAll('.lang-card').forEach(c => c.className = 'lang-card');
-  el.className = 'lang-card selected';
+  if (el) el.className = 'lang-card selected';
   applyWizardLang();
 }
 function applyWizardLang() {
-  const isDE = lang === 'de';
   const el = id => document.getElementById(id);
   // Step labels
   updateStepLabels();
   // Pane 1 (Language)
   const p1 = document.querySelector('#pane-1 .card-title');
-  if (el('p1-title')) el('p1-title').textContent = isDE ? 'Sprache wählen' : 'Choose language';
-  if (el('p1-sub'))   el('p1-sub').textContent   = isDE ? 'Kann jederzeit im Dashboard geändert werden.' : 'Can be changed any time in the dashboard.';
-  if (el('add-inst-btn')) el('add-inst-btn').textContent = isDE ? '+ Instanz hinzufügen' : '+ Add instance';
-  if (el('no-inst-msg')) el('no-inst-msg').textContent = isDE ? 'Keine Instanzen. Klicke auf "+ Instanz hinzufügen".' : 'No instances. Click "+ Add instance".';
+  if (el('p1-title')) el('p1-title').textContent = 'Choose language';
+  if (el('p1-sub'))   el('p1-sub').textContent   = 'Can be changed any time in the dashboard.';
+  if (el('add-inst-btn')) el('add-inst-btn').textContent = '+ Add instance';
+  if (el('no-inst-msg')) el('no-inst-msg').textContent = 'No instances. Click "+ Add instance".';
   const p1s = document.querySelector('#pane-1 .card-sub');
-  if (p1s) p1s.textContent = isDE ? 'Kann jederzeit im Dashboard geändert werden.' : 'Can be changed at any time in the dashboard.';
+  if (p1s) p1s.textContent = 'Can be changed at any time in the dashboard.';
   const p1step = document.querySelector('#pane-1 .card-footer span');
-  if (p1step) p1step.textContent = isDE ? 'Schritt 1 von 4' : 'Step 1 of 4';
+  if (p1step) p1step.textContent = 'Step 1 of 4';
   const p1next = document.querySelector('#pane-1 .btn-accent');
-  if (p1next) p1next.textContent = isDE ? 'Weiter →' : 'Next →';
+  if (p1next) p1next.textContent = 'Next →';
   // Pane 2 (Instances)
   const p2title = document.querySelector('#pane-2 .card-title');
-  if (p2title) p2title.textContent = isDE ? 'Instanzen konfigurieren' : 'Configure instances';
+  if (p2title) p2title.textContent = 'Configure instances';
   const p2sub = document.querySelector('#pane-2 .card-sub');
-  if (p2sub) p2sub.innerHTML = isDE
-    ? 'Füge beliebig viele Sonarr- und/oder Radarr-Instanzen hinzu.<br>Mindestens eine Instanz ist erforderlich. Du kannst auch nur Sonarr <em>oder</em> nur Radarr verwenden.'
-    : 'Add any number of Sonarr and/or Radarr instances.<br>At least one instance is required. You can also use only Sonarr <em>or</em> only Radarr.';
-  if (el('p2-back')) el('p2-back').textContent = isDE ? '← Zurück' : '← Back';
-  if (el('p2-next')) el('p2-next').textContent = isDE ? 'Weiter →' : 'Next →';
+  if (p2sub) p2sub.innerHTML = 'Add any number of Sonarr and/or Radarr instances.<br>At least one instance is required. You can also use only Sonarr <em>or</em> only Radarr.';
+  if (el('p2-back')) el('p2-back').textContent = '← Back';
+  if (el('p2-next')) el('p2-next').textContent = 'Next →';
   const addBtn = document.querySelector('.add-btn');
-  if (addBtn) addBtn.textContent = isDE ? '+ Instanz hinzufügen' : '+ Add instance';
+  if (addBtn) addBtn.textContent = '+ Add instance';
   // Pane 3 (Discord)
-  if (el('dc-wiz-title')) el('dc-wiz-title').textContent = isDE ? 'Discord Benachrichtigungen (optional)' : 'Discord notifications (optional)';
-  if (el('dc-wiz-sub'))   el('dc-wiz-sub').innerHTML = isDE
-    ? 'Kann später in Einstellungen → Discord konfiguriert werden.<br>Webhook erstellen: Server → Einstellungen → Integrationen → Webhooks.'
-    : 'Can be configured later in Settings → Discord.<br>Create webhook: Server → Settings → Integrations → Webhooks.';
-  if (el('dc-wiz-lbl-url')) el('dc-wiz-lbl-url').textContent = isDE ? 'Webhook URL' : 'Webhook URL';
-  if (el('dc-wiz-hint'))    el('dc-wiz-hint').textContent = isDE ? 'Leer lassen um Discord vorerst zu überspringen.' : 'Leave blank to skip Discord for now.';
-  if (el('dc-wiz-ev1'))     el('dc-wiz-ev1').textContent = isDE ? '🔍 Fehlend gesucht'    : '🔍 Missing searched';
-  if (el('dc-wiz-ev2'))     el('dc-wiz-ev2').textContent = isDE ? '⬆ Upgrade gesucht'    : '⬆ Upgrade searched';
-  if (el('dc-wiz-ev3'))     el('dc-wiz-ev3').textContent = isDE ? '🚫 Tageslimit'         : '🚫 Daily limit';
-  if (el('dc-wiz-ev4'))     el('dc-wiz-ev4').textContent = isDE ? '📡 Instanz offline'   : '📡 Instance offline';
-  if (el('p3-back'))        el('p3-back').textContent = isDE ? '← Zurück' : '← Back';
-  if (el('finish-btn'))     el('finish-btn').textContent = isDE ? '✓ Setup abschließen' : '✓ Finish setup';
-  if (el('done-title'))     el('done-title').textContent = isDE ? 'Alles eingerichtet!' : 'All set!';
-  if (el('done-sub'))       el('done-sub').textContent   = isDE
-    ? 'mediastarrv2 startet und beginnt automatisch mit der Suche.'
-    : 'mediastarrv2 is starting and will begin searching automatically.';
+  if (el('dc-wiz-title')) el('dc-wiz-title').textContent = 'Discord notifications (optional)';
+  if (el('dc-wiz-sub'))   el('dc-wiz-sub').innerHTML = 'Can be configured later in Settings → Discord.<br>Create webhook: Server → Settings → Integrations → Webhooks.';
+  if (el('dc-wiz-lbl-url')) el('dc-wiz-lbl-url').textContent = 'Webhook URL';
+  if (el('dc-wiz-hint'))    el('dc-wiz-hint').textContent = 'Leave blank to skip Discord for now.';
+  if (el('dc-wiz-ev1'))     el('dc-wiz-ev1').textContent = '🔍 Missing searched';
+  if (el('dc-wiz-ev2'))     el('dc-wiz-ev2').textContent = '⬆ Upgrade searched';
+  if (el('dc-wiz-ev3'))     el('dc-wiz-ev3').textContent = '🚫 Daily limit';
+  if (el('dc-wiz-ev4'))     el('dc-wiz-ev4').textContent = '📡 Instance offline';
+  if (el('p3-back'))        el('p3-back').textContent = '← Back';
+  if (el('finish-btn'))     el('finish-btn').textContent = '✓ Finish setup';
+  if (el('done-title'))     el('done-title').textContent = 'All set!';
+  if (el('done-sub'))       el('done-sub').textContent   = 'mediahunter is starting and will begin searching automatically.';
   const goBtnP4 = document.querySelector('#pane-4 .btn-accent');
-  if (goBtnP4) goBtnP4.textContent = isDE ? '🚀 Zum Dashboard' : '🚀 Go to dashboard';
+  if (goBtnP4) goBtnP4.textContent = '🚀 Go to dashboard';
   // Pane 4 (Done)
   const doneTitle = document.querySelector('#pane-4 .card-body > div:first-child');
   const goBtn = document.querySelector('#pane-4 .btn-accent');
-  if (goBtn) goBtn.textContent = isDE ? '🚀 Zum Dashboard' : '🚀 Go to dashboard';
+  if (goBtn) goBtn.textContent = '🚀 Go to dashboard';
   // Instance card type select options
   document.querySelectorAll('select[id^="type-select-"]').forEach(sel => {
     [...sel.options].forEach(o => {
-      if (o.value==='sonarr') o.text = isDE ? '📺 Sonarr (Serien)' : '📺 Sonarr (Series)';
-      if (o.value==='radarr') o.text = isDE ? '🎬 Radarr (Filme)'  : '🎬 Radarr (Movies)';
+      if (o.value==='sonarr') o.text = '📺 Sonarr (Series)';
+      if (o.value==='radarr') o.text = '🎬 Radarr (Movies)';
     });
   });
 }
@@ -391,9 +362,7 @@ function goTo(step) {
   applyWizardLang();
 }
 function updateStepLabels() {
-  const labels = lang === 'de'
-    ? ['Sprache','Instanzen','Discord','Fertig']
-    : ['Language','Instances','Discord','Done'];
+  const labels = ['Language','Instances','Discord','Done'];
   [1,2,3,4].forEach(i => {
     const el = document.getElementById(`s${i}`);
     if (el) el.querySelector('.step-lbl').textContent = labels[i-1];
@@ -435,20 +404,20 @@ function renderInstances() {
   const el = document.getElementById('inst-list');
   if (!instances.length) {
     el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted2);font-size:12px">
-      ${lang === 'de' ? 'Keine Instanzen.' : 'No instances.'}</div>`;
+      No instances.</div>`;
     return;
   }
   el.innerHTML = instances.map((inst,idx) => {
-    const displayName = escHtml(inst.name || (lang === 'de' ? `Instanz ${idx+1}` : `Instance ${idx+1}`));
+    const displayName = escHtml(inst.name || `Instance ${idx+1}`);
     const safeName = escHtml(inst.name || '');
     const safeUrl = escHtml(inst.url || '');
     const badgeLabel = inst.type === 'sonarr' ? '📺 Sonarr' : '🎬 Radarr';
-    const statusText = inst.tested ? `✓ v${escHtml(inst.version || '')}` : (lang === 'de' ? '○ nicht getestet' : '○ not tested');
+    const statusText = inst.tested ? `✓ v${escHtml(inst.version || '')}` : '○ not tested';
     const namePlaceholder = inst.type === 'sonarr'
-      ? (lang === 'de' ? 'z.B. Sonarr 4K' : 'e.g. Sonarr 4K')
-      : (lang === 'de' ? 'z.B. Radarr HD' : 'e.g. Radarr HD');
+      ? 'e.g. Sonarr 4K'
+      : 'e.g. Radarr HD';
     const urlPlaceholder = defaultArrUrl(inst.type);
-    const testLabel = lang === 'de' ? '🔌 Test' : '🔌 Test';
+    const testLabel = '🔌 Test';
     const removeLabel = '✕';
 
     return `
@@ -463,15 +432,15 @@ function renderInstances() {
       </div>
       <div class="inst-body">
         <div class="field">
-          <label class="label">${lang === 'de' ? 'Name' : 'Name'}</label>
+          <label class="label">Name</label>
           <input class="input" id="name-${inst.id}" value="${safeName}" placeholder="${namePlaceholder}"
             oninput="updateInst('${inst.id}','name',this.value)" style="border-color:${inst.name ? 'rgba(61,230,139,.4)' : ''}">
         </div>
         <div class="field">
-          <label class="label">${lang === 'de' ? 'Typ' : 'Type'}</label>
+          <label class="label">Type</label>
           <select class="input" id="type-select-${inst.id}" onchange="updateInst('${inst.id}','type',this.value);renderInstances()">
-            <option value="sonarr" ${inst.type==='sonarr'?'selected':''}>${lang === 'de' ? 'Sonarr (Serien)' : 'Sonarr (Series)'}</option>
-            <option value="radarr" ${inst.type==='radarr'?'selected':''}>${lang === 'de' ? 'Radarr (Filme)' : 'Radarr (Movies)'}</option>
+            <option value="sonarr" ${inst.type==='sonarr'?'selected':''}>Sonarr (Series)</option>
+            <option value="radarr" ${inst.type==='radarr'?'selected':''}>Radarr (Movies)</option>
           </select>
         </div>
         <div class="field" style="grid-column:1/-1">
@@ -482,7 +451,7 @@ function renderInstances() {
         <div class="field" style="grid-column:1/-1">
           <label class="label">API Key <span style="color:var(--muted)">· Settings → General → Security</span></label>
           <div class="field-row">
-            <input class="input" type="password" placeholder="${lang === 'de' ? '32-stelliger API Key' : '32-character API key'}" autocomplete="off"
+            <input class="input" type="password" placeholder="32-character API key" autocomplete="off"
               oninput="updateInst('${inst.id}','api_key',this.value)">
             <button class="btn btn-test" onclick="testInst('${inst.id}')">${testLabel}</button>
           </div>
@@ -497,7 +466,7 @@ async function testInst(id) {
   const inst = instances.find(i => i.id === id);
   if (!inst) return;
   const statusEl = document.getElementById(`status-${id}`);
-  statusEl.textContent = lang === 'de' ? '⟳ teste...' : '⟳ testing...';
+  statusEl.textContent = '⟳ testing...';
   statusEl.className = 'inst-status pending';
   try {
     const r = await fetch('/api/setup/ping', {
@@ -510,12 +479,12 @@ async function testInst(id) {
       statusEl.textContent = `✓ v${d.version}`; statusEl.className = 'inst-status ok';
     } else {
       inst.tested = false;
-      const failMsg = localizeServerMsg(d.msg || (lang === 'de' ? 'Fehler' : 'Error'));
+      const failMsg = localizeServerMsg(d.msg || 'Error');
       statusEl.textContent = `✗ ${failMsg}`;
       statusEl.className = 'inst-status fail';
     }
   } catch {
-    statusEl.textContent = lang === 'de' ? '✗ Netzwerkfehler' : '✗ Network error';
+    statusEl.textContent = '✗ Network error';
     statusEl.className = 'inst-status fail';
   }
   // Sync rendered input values → instances array (catches init values)
@@ -533,7 +502,7 @@ async function testInst(id) {
 function goToDiscord() {
   if (instances.length === 0) {
     const errEl = document.getElementById('setup-errors');
-    errEl.textContent = lang === 'de' ? 'Mindestens eine Instanz erforderlich.' : 'At least one instance required.';
+    errEl.textContent = 'At least one instance required.';
     errEl.style.display = 'block'; return;
   }
   document.getElementById('setup-errors').style.display = 'none';
@@ -557,8 +526,8 @@ async function testWizardDiscord() {
     if (msg) {
       msg.style.color = d.ok ? 'var(--green)' : 'var(--red)';
       msg.textContent = d.ok
-        ? (lang==='de' ? '✓ Gesendet! Prüfe Discord.' : '✓ Sent! Check Discord.')
-        : (lang==='de' ? '✗ Fehler — URL prüfen.' : '✗ Error — check URL.');
+        ? '✓ Sent! Check Discord.'
+        : '✗ Error — check URL.';
     }
   } catch { if (msg) { msg.style.color='var(--red)'; msg.textContent='✗ Network error'; } }
 }
@@ -566,11 +535,11 @@ async function testWizardDiscord() {
 async function finishSetup() {
   const errEl = document.getElementById('setup-errors-p3') || document.getElementById('setup-errors');
   const btn = document.getElementById('finish-btn');
-  const btnOrigText = lang === 'de' ? '✓ Setup abschließen' : '✓ Finish setup';
+  const btnOrigText = '✓ Finish setup';
   if (!btn) return;
   errEl.style.display = 'none';
   if (instances.length === 0) {
-    errEl.textContent = lang === 'de' ? 'Mindestens eine Instanz erforderlich.' : 'At least one instance required.';
+    errEl.textContent = 'At least one instance required.';
     errEl.style.display = 'block'; return;
   }
   // Client-side validation — catch empty names/URLs before sending
@@ -578,40 +547,34 @@ async function finishSetup() {
     const inst = instances[i];
     const num = i + 1;
     if (!inst.name || !inst.name.trim()) {
-      errEl.textContent = lang === 'de'
-        ? `Instanz ${num}: Bitte einen Namen eingeben.`
-        : `Instance ${num}: Please enter a name.`;
+      errEl.textContent = `Instance ${num}: Please enter a name.`;
       errEl.style.display = 'block';
       btn.disabled = false; btn.textContent = btnOrigText;
       return;
     }
     if (!inst.url || !inst.url.trim()) {
-      errEl.textContent = lang === 'de'
-        ? `Instanz ${num} (${inst.name}): URL fehlt.`
-        : `Instance ${num} (${inst.name}): URL is missing.`;
+      errEl.textContent = `Instance ${num} (${inst.name}): URL is missing.`;
       errEl.style.display = 'block';
       btn.disabled = false; btn.textContent = btnOrigText;
       return;
     }
     if (!inst.api_key || inst.api_key.trim().length < 8) {
-      errEl.textContent = lang === 'de'
-        ? `Instanz ${num} (${inst.name}): API Key fehlt oder zu kurz.`
-        : `Instance ${num} (${inst.name}): API key is missing or too short.`;
+      errEl.textContent = `Instance ${num} (${inst.name}): API key is missing or too short.`;
       errEl.style.display = 'block';
       btn.disabled = false; btn.textContent = btnOrigText;
       return;
     }
   }
   btn.disabled = true;
-  btn.textContent = lang === 'de' ? '⏳ Speichere...' : '⏳ Saving...';
+  btn.textContent = '⏳ Saving...';
   const dcUrl = document.getElementById('wiz-dc-url')?.value?.trim() || '';
   // Client-side validation — catch empty fields before hitting the server
   const valErrors = [];
   instances.forEach((inst, i) => {
     const label = `#${i+1}`;
-    if (!inst.name || !inst.name.trim())    valErrors.push(`${label}: ${lang==='de'?'Name fehlt':'Name is required'}`);
-    if (!inst.url  || !inst.url.trim())     valErrors.push(`${label}: ${lang==='de'?'URL fehlt':'URL is required'}`);
-    if (!inst.api_key || !inst.api_key.trim()) valErrors.push(`${label}: ${lang==='de'?'API Key fehlt':'API Key is required'}`);
+    if (!inst.name || !inst.name.trim())    valErrors.push(`${label}: Name is required`);
+    if (!inst.url  || !inst.url.trim())     valErrors.push(`${label}: URL is required`);
+    if (!inst.api_key || !inst.api_key.trim()) valErrors.push(`${label}: API Key is required`);
   });
   if (valErrors.length) {
     errEl.innerHTML = valErrors.join('<br>');
@@ -645,16 +608,13 @@ async function finishSetup() {
     const d = await r.json();
     if (d.ok) { buildSummary(); goTo(4); }
     else {
-      const rawErrors = d.errors || [d.error || (lang === 'de' ? 'Fehler beim Speichern.' : 'Failed to save.')];
+      const rawErrors = d.errors || [d.error || 'Failed to save.'];
       const errMsg = rawErrors.map(e => {
-        if (lang === 'en') {
-          return localizeServerMsg(e)
-                  .replace('Name fehlt', 'Name is missing')
-                  .replace('Ungültige Zeichen oder zu lang (max 40)', 'Invalid characters or too long (max 40)')
-                  .replace('API Key fehlt oder zu kurz', 'API key is missing or too short')
-                  .replace('Nicht gefunden', 'Not found');
-        }
-        return e;
+        return localizeServerMsg(e)
+                .replace('Name missing', 'Name is missing')
+                .replace('Invalid characters or too long (max 40)', 'Invalid characters or too long (max 40)')
+                .replace('API key missing or too short', 'API key is missing or too short')
+                .replace('Not found', 'Not found');
       }).join('<br>');
       errEl.innerHTML = errMsg;
       errEl.style.display = 'block';
@@ -662,7 +622,7 @@ async function finishSetup() {
     }
   } catch (e) {
     console.error('finishSetup error:', e);
-    errEl.textContent = lang === 'de' ? 'Verbindungsfehler — bitte neu versuchen.' : 'Connection error — please try again.';
+    errEl.textContent = 'Connection error — please try again.';
     errEl.style.display = 'block';
     btn.disabled = false; btn.textContent = btnOrigText;
   }
@@ -670,10 +630,10 @@ async function finishSetup() {
 
 function buildSummary() {
   const rows = [
-    {key: lang === 'de' ? 'Sprache' : 'Language', val: lang === 'de' ? '🇩🇪 Deutsch' : '🇬🇧 English'},
+    {key: 'Language', val: '🇬🇧 English'},
     ...instances.map(i => ({
       key: i.type === 'sonarr' ? '📺 ' + escHtml(i.name || '') : '🎬 ' + escHtml(i.name || ''),
-      val: i.tested ? `Online (v${escHtml(i.version || '')})` : (lang === 'de' ? 'Konfiguriert' : 'Configured')
+      val: i.tested ? `Online (v${escHtml(i.version || '')})` : 'Configured'
     }))
   ];
   document.getElementById('summary').innerHTML = rows.map(r => `

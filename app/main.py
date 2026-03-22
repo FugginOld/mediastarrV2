@@ -1,17 +1,17 @@
 ﻿"""
-mediastarrv2 v6 — main.py
-Multi-instance Sonarr & Radarr — independent project, NOT affiliated with Huntarr.
-github.com/FugginOld/mediastarrV2
+MediaHunter v1.0 Beta — main.py
+Multi-instance Sonarr & Radarr.
+github.com/FugginOld/MediaHunter
 
-New in v6:
+New in v1.0 Beta:
+  - Queue-based scan/dispatch architecture
+  - Initial full scan on first run, weekly queue refresh
   - Jitter: random ±N minutes added to each hunt interval (configurable)
   - Sonarr search granularity: series / season / episode
   - Upgrade search can be disabled per instance
   - Configurable request timeout (default 30s)
   - Configurable timezone (default UTC, affects timestamps + log display)
-  - Full i18n for log messages (DE/EN)
-  - Fixed episode title: "Series – Episode title – S01E01"
-  - Language switch now persists and reloads sidebar correctly
+    - English-only log messages and UI labels
   - Instance management fully in main settings (no wizard redirect needed)
 """
 import os, re, json, time, logging, threading, requests, random, string, zoneinfo, socket, secrets, ipaddress
@@ -26,26 +26,26 @@ except ImportError:
     import db
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
-app.config["SECRET_KEY"] = os.environ.get("MEDIASTARR_SESSION_SECRET") or secrets.token_hex(32)
+app.config["SECRET_KEY"] = os.environ.get("MEDIAHUNTER_SESSION_SECRET") or secrets.token_hex(32)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = os.environ.get("MEDIASTARR_SESSION_SECURE", "").strip().lower() in {"1", "true", "yes", "on"}
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("MEDIAHUNTER_SESSION_SECURE", "").strip().lower() in {"1", "true", "yes", "on"}
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 ALLOWED_TYPES       = frozenset({"sonarr","radarr"})
-ALLOWED_LANGUAGES   = frozenset({"de","en"})
+ALLOWED_LANGUAGES   = frozenset({"en"})
 ALLOWED_ACTIONS     = frozenset({"start","stop","run_now"})
 ALLOWED_SCHEMES     = frozenset({"http","https"})
 ALLOWED_THEMES      = frozenset({"dark","light","oled"})
 ALLOWED_SONARR_MODES= frozenset({"episode","season","series"})
 API_KEY_RE          = re.compile(r'^[A-Za-z0-9\-_]{8,128}$')
-NAME_RE             = re.compile(r'^[A-Za-z0-9 \-_äöüÄÖÜß]{1,40}$')
+NAME_RE             = re.compile(r'^[A-Za-z0-9 \-_]{1,40}$')
 URL_MAX_LEN         = 256
 MAX_INSTANCES       = 20
 MIN_INTERVAL_SEC    = 900   # 15 minutes absolute minimum
-AUTH_PASSWORD       = os.environ.get("MEDIASTARR_PASSWORD", "").strip()
+AUTH_PASSWORD       = os.environ.get("MEDIAHUNTER_PASSWORD", "").strip()
 
 # ─── Discord Webhook ─────────────────────────────────────────────────────────
 DISCORD_COLORS = {
@@ -100,7 +100,7 @@ def discord_send(event_type: str, title: str, description: str,
         return
 
     color = DISCORD_COLORS.get(event_type, DISCORD_COLORS["info"])
-    footer_text = f"mediastarrv2 v6 · {instance_name}" if instance_name else "mediastarrv2 v6"
+    footer_text = f"MediaHunter v1.0 Beta · {instance_name}" if instance_name else "MediaHunter v1.0 Beta"
     embed = {
         "title":       safe_str(title, 256),
         "description": safe_str(description, 2048),
@@ -135,28 +135,19 @@ def discord_send_stats():
     """Send a statistics summary embed to Discord."""
     dc = CONFIG.get("discord", {})
     if not dc.get("enabled") or not dc.get("notify_stats", False): return
-    lang  = CONFIG.get("language", "de")
+    lang  = "en"
     today = db.count_today()
     limit = CONFIG.get("daily_limit", 0)
     total = db.total_count()
     cycles = STATE.get("cycle_count", 0)
 
-    if lang == "de":
-        title = "📊 mediastarrv2 Statistiken"
-        desc  = f"Tagesbericht — {now_local().strftime('%d.%m.%Y %H:%M')}"
-        f_today  = "Heute"
-        f_total  = "Gesamt"
-        f_cycles = "Zyklen"
-        f_insts  = "Aktive Instanzen"
-        f_limit  = f"{today} / {limit if limit else '∞'}"
-    else:
-        title = "📊 mediastarrv2 Statistics"
-        desc  = f"Daily report — {now_local().strftime('%Y-%m-%d %H:%M')}"
-        f_today  = "Today"
-        f_total  = "Total"
-        f_cycles = "Cycles"
-        f_insts  = "Active instances"
-        f_limit  = f"{today} / {limit if limit else '∞'}"
+    title = "📊 MediaHunter Statistics"
+    desc  = f"Daily report — {now_local().strftime('%Y-%m-%d %H:%M')}"
+    f_today  = "Today"
+    f_total  = "Total"
+    f_cycles = "Cycles"
+    f_insts  = "Active instances"
+    f_limit  = f"{today} / {limit if limit else '∞'}"
 
     active = len([i for i in CONFIG["instances"] if i.get("enabled")])
     fields = [
@@ -195,41 +186,28 @@ _stats_thread = threading.Thread(target=_stats_loop, daemon=True)
 _stats_thread.start()
 
 
-# ─── i18n log messages ───────────────────────────────────────────────────────
+# ─── Log messages (English only) ─────────────────────────────────────────────
 MSGS = {
-    "de": {
-        "cycle_start":      "Zyklus #{n} gestartet – {active} aktiv – Heute: {today}/{limit}",
-        "cycle_done":       "Zyklus #{n} abgeschlossen – Heute gesamt: {today}",
-        "daily_limit":      "Tageslimit erreicht: {today}/{limit}",
-        "db_pruned":        "{n} abgelaufene Einträge bereinigt",
-        "skipped_offline":  "Übersprungen – Offline oder deaktiviert",
-        "auto_start":       "Hunt-Schleife gestartet",
-        "app_start":        "mediastarrv2 v6.0.2 gestartet",
-        "setup_required":   "Einrichtung erforderlich – {setup_url}",
-        "missing":          "Fehlend",
-        "upgrade":          "Upgrade",
-        "error":            "Fehler",
-        "next_run":         "Nächster Lauf um {hhmm} (Jitter: {jitter_min})",
-    },
-    "en": {
-        "cycle_start":      "Cycle #{n} started – {active} active – Today: {today}/{limit}",
-        "cycle_done":       "Cycle #{n} done – Today total: {today}",
-        "daily_limit":      "Daily limit reached: {today}/{limit}",
-        "db_pruned":        "{n} expired entries pruned",
-        "skipped_offline":  "Skipped – offline or disabled",
-        "auto_start":       "Hunt loop started",
-        "app_start":        "mediastarrv2 v6.0.2 started",
-        "setup_required":   "Setup required – {setup_url}",
-        "missing":          "Missing",
-        "upgrade":          "Upgrade",
-        "error":            "Error",
-        "next_run":         "Next run at {hhmm} (jitter: {jitter_min})",
-    },
+    "cycle_start":      "Cycle #{n} started – {active} active – Today: {today}/{limit}",
+    "cycle_done":       "Cycle #{n} done – Today total: {today}",
+    "daily_limit":      "Daily limit reached: {today}/{limit}",
+    "db_pruned":        "{n} expired entries pruned",
+    "skipped_offline":  "Skipped – offline or disabled",
+    "auto_start":       "Hunt loop started",
+    "app_start":        "MediaHunter v1.0 Beta started",
+    "setup_required":   "Setup required – {setup_url}",
+    "missing":          "Missing",
+    "upgrade":          "Upgrade",
+    "error":            "Error",
+    "next_run":         "Next run at {hhmm} (jitter: {jitter_min})",
+    "scan_start":       "Scanning {name}...",
+    "scan_done":        "Queue updated: {n} items for {name}",
+    "scan_error":       "Scan error [{name}]: {err}",
+    "no_queue":         "Queue empty for {name} – running scan",
 }
 
 def msg(key: str, **kwargs) -> str:
-    lang = CONFIG.get("language","en")
-    tmpl = MSGS.get(lang, MSGS["en"]).get(key, key)
+    tmpl = MSGS.get(key, key)
     try: return tmpl.format(**kwargs)
     except: return tmpl
 
@@ -238,15 +216,15 @@ def setup_url_for_logs() -> str:
     """Return externally reachable setup URL for startup logs.
 
     Priority:
-    1) MEDIASTARR_PUBLIC_URL (full URL, e.g. https://host.example.com)
-    2) MEDIASTARR_PUBLIC_PORT (host-mapped port, e.g. 9191)
+    1) MEDIAHUNTER_PUBLIC_URL (full URL, e.g. https://host.example.com)
+    2) MEDIAHUNTER_PUBLIC_PORT (host-mapped port, e.g. 9191)
     3) default localhost:7979
     """
-    public_url = os.environ.get("MEDIASTARR_PUBLIC_URL", "").strip().rstrip("/")
+    public_url = os.environ.get("MEDIAHUNTER_PUBLIC_URL", "").strip().rstrip("/")
     if public_url:
         return f"{public_url}/setup"
 
-    public_port = os.environ.get("MEDIASTARR_PUBLIC_PORT", "").strip()
+    public_port = os.environ.get("MEDIAHUNTER_PUBLIC_PORT", "").strip()
     if public_port.isdigit():
         return f"http://localhost:{public_port}/setup"
 
@@ -255,7 +233,7 @@ def setup_url_for_logs() -> str:
 # ─── Paths ───────────────────────────────────────────────────────────────────
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 CFG_FILE = DATA_DIR / "config.json"
-DB_FILE  = DATA_DIR / "mediastarrv2.db"
+DB_FILE  = DATA_DIR / "mediahunter.db"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 db.init(DB_FILE)
 
@@ -266,7 +244,7 @@ def make_id() -> str:
 def fresh_inst_stats() -> dict:
     return {"missing_found":0,"missing_searched":0,"upgrades_found":0,
             "upgrades_searched":0,"skipped_cooldown":0,"skipped_daily":0,
-            "skipped_unreleased":0,
+            "skipped_unreleased":0,"queue_size":0,"scan_status":"idle",
             "status":"unknown","version":"?"}
 
 def now_local() -> datetime:
@@ -323,6 +301,8 @@ DEFAULT_CONFIG = {
         "stats_last_sent_at":  0.0,    # unix timestamp
         "rate_limit_cooldown": 5,      # seconds between same-type messages
     },
+    "scan_interval_days": 7,       # days between full queue refreshes
+    "queue_last_scan":    {},       # {inst_id: ISO timestamp of last scan}
 }
 
 def load_config() -> dict:
@@ -396,6 +376,11 @@ def _bootstrap_arr_url(service: str) -> str:
 
 CONFIG = load_config()
 
+# English-only mode: normalize any existing config to English.
+if CONFIG.get("language") != "en":
+    CONFIG["language"] = "en"
+    save_config(CONFIG)
+
 # Env-var bootstrap
 if not CONFIG["setup_complete"] and not CONFIG["instances"]:
     for svc, ek, eu in [
@@ -415,6 +400,7 @@ if not CONFIG["setup_complete"] and not CONFIG["instances"]:
 STATE = {
     "running":False,"last_run":None,"next_run":None,"cycle_count":0,
     "inst_stats":{}, "activity_log":deque(maxlen=300),
+    "scan_running":False,
 }
 STOP_EVENT  = threading.Event()
 hunt_thread = None
@@ -429,18 +415,18 @@ _ensure_inst_stats()
 
 # ─── Validation ───────────────────────────────────────────────────────────────
 def validate_url(url: str, max_len: int = URL_MAX_LEN):
-    if not url or not isinstance(url,str): return False,"URL fehlt"
-    if len(url) > max_len: return False,"URL zu lang"
+    if not url or not isinstance(url,str): return False,"URL is missing"
+    if len(url) > max_len: return False,"URL is too long"
     try: p = urlparse(url)
-    except: return False,"URL ungültig"
-    if p.scheme not in ALLOWED_SCHEMES: return False,f"Schema '{p.scheme}' nicht erlaubt"
-    if not p.hostname: return False,"Kein Hostname"
+    except: return False,"Invalid URL"
+    if p.scheme not in ALLOWED_SCHEMES: return False,f"Scheme '{p.scheme}' not allowed"
+    if not p.hostname: return False,"Missing hostname"
     return True,""
 
 
 def validate_discord_webhook_url(url: str):
     if not url or not isinstance(url, str):
-        return False, "URL fehlt"
+        return False, "URL is missing"
     return validate_url(url, 512)
 
 
@@ -488,17 +474,17 @@ def validate_internal_service_url(url: str):
         return False, err
     parsed = urlparse(url)
     if not parsed.hostname or not is_private_host(parsed.hostname):
-        return False, "Ziel muss auf ein lokales oder internes System zeigen"
+        return False, "Target must point to a local or internal system"
     return True, ""
 
 def validate_api_key(key: str):
-    if not key or not isinstance(key,str): return False,"API Key fehlt"
-    if not API_KEY_RE.match(key): return False,"Ungültiges Format (8-128 Zeichen: A-Z a-z 0-9 - _)"
+    if not key or not isinstance(key,str): return False,"API key is missing"
+    if not API_KEY_RE.match(key): return False,"Invalid format (8-128 chars: A-Z a-z 0-9 - _)"
     return True,""
 
 def validate_name(name: str):
-    if not name or not isinstance(name,str): return False,"Name fehlt"
-    if not NAME_RE.match(name.strip()): return False,"Ungültige Zeichen oder zu lang (max 40)"
+    if not name or not isinstance(name,str): return False,"Name is missing"
+    if not NAME_RE.match(name.strip()): return False,"Invalid characters or too long (max 40)"
     return True,""
 
 def clamp_int(val, lo, hi, default):
@@ -546,13 +532,13 @@ def require_auth():
     return None
 
 @app.errorhandler(400)
-def e400(e): return jsonify({"ok":False,"error":"Ungültige Anfrage"}),400
+def e400(e): return jsonify({"ok":False,"error":"Invalid request"}),400
 @app.errorhandler(404)
-def e404(e): return jsonify({"ok":False,"error":"Nicht gefunden"}),404
+def e404(e): return jsonify({"ok":False,"error":"Not found"}),404
 @app.errorhandler(405)
-def e405(e): return jsonify({"ok":False,"error":"Methode nicht erlaubt"}),405
+def e405(e): return jsonify({"ok":False,"error":"Method not allowed"}),405
 @app.errorhandler(500)
-def e500(e): logger.error(f"500:{e}"); return jsonify({"ok":False,"error":"Interner Serverfehler"}),500
+def e500(e): logger.error(f"500:{e}"); return jsonify({"ok":False,"error":"Internal server error"}),500
 
 # ─── *arr API Client ──────────────────────────────────────────────────────────
 class ArrClient:
@@ -661,287 +647,338 @@ def should_search(iid:str, item_type:str, item_id:int, release_dt=None):
     return True, ""
 
 
-def _has_download_event(client: ArrClient, arr_type: str, item_id: int, series_id=None) -> bool:
-    """Best-effort check whether search produced a grab/import event recently."""
-    for _ in range(4):
-        try:
-            data = client.get("history", params={"pageSize": 100, "sortKey": "date", "sortDirection": "descending"})
-            records = data.get("records", []) if isinstance(data, dict) else []
-        except Exception:
-            return False
-
-        now = datetime.utcnow()
-        for rec in records:
-            event_type = str(rec.get("eventType", "")).lower()
-            if event_type not in {"grabbed", "downloadfolderimported"}:
-                continue
-
-            rec_dt = _parse_release_dt(rec.get("date"))
-            if rec_dt is not None:
-                try:
-                    if (now - rec_dt.replace(tzinfo=None)).total_seconds() > 900:
-                        continue
-                except Exception:
-                    pass
-
-            if arr_type == "radarr":
-                if rec.get("movieId") == item_id:
-                    return True
-            else:
-                if rec.get("episodeId") == item_id:
-                    return True
-                if series_id is not None and rec.get("seriesId") == series_id:
-                    return True
-        # Give Arr a moment to persist history events from the triggered command.
-        time.sleep(2)
-    return False
-
-def do_search(client:ArrClient, iid:str, item_type:str, item_id:int,
-              title:str, command:dict, changed=None, year=None, series_id=None):
+def do_search(client: ArrClient, iid: str, item_type: str, item_id: int,
+              title: str, command: dict, changed=None, year=None):
+    """Dispatch a search command and record it. Returns 'dispatched', 'dry_run', or 'error'."""
     if CONFIG["dry_run"]:
         result = "dry_run"
     else:
-        client.post("command", command)
-        inst = next((i for i in CONFIG["instances"] if i["id"] == iid), {})
-        arr_type = inst.get("type", "")
-        found = _has_download_event(client, arr_type, item_id, series_id=series_id)
-        result = "downloaded" if found else "no_download"
-        if found:
-            db.upsert_search(iid, item_type, item_id, title, "downloaded", changed, year)
+        try:
+            client.post("command", command)
+        except Exception as e:
+            inst_name_err = next((i["name"] for i in CONFIG["instances"] if i["id"] == iid), iid)
+            log_act(inst_name_err, msg("error"), str(e)[:200], "error")
+            return "error"
+        result = "dispatched"
+        db.upsert_search(iid, item_type, item_id, title, "dispatched", changed, year)
 
     # Discord notification
     inst = next((i for i in CONFIG["instances"] if i["id"] == iid), {})
     inst_name = inst.get("name", iid)
     is_upgrade = "upgrade" in item_type
     event = "upgrade" if is_upgrade else "missing"
-    label_de = "Upgrade gesucht" if is_upgrade else "Fehlend gesucht"
     label_en = "Upgrade searched" if is_upgrade else "Missing searched"
-    label = label_de if CONFIG.get("language","de") == "de" else label_en
+    label = label_en
     icon  = "⬆️" if is_upgrade else "🔍"
     if result == "dry_run":
         desc = f"**[Dry Run]** {icon} {title}"
     else:
         desc = f"{icon} {title}"
     discord_send(event, label, desc, inst_name, fields=[
-        {"name": "Instanz", "value": inst_name, "inline": True},
-        {"name": "Typ",     "value": item_type,  "inline": True},
+        {"name": "Instance", "value": inst_name, "inline": True},
+        {"name": "Type",     "value": item_type,  "inline": True},
     ])
     return result
 
-def _ep_title(ep: dict, lang: str) -> str:
-    """Build 'Series – Episode Title – S01E01'.
-    Tries all known Sonarr API paths for the series title.
-    When title is genuinely absent, shows Series #ID so user can identify it."""
-    series  = ep.get("series") or {}
-    s_title = (
-        series.get("title") or
-        ep.get("seriesTitle") or
-        series.get("sortTitle") or
-        ""
-    ).strip()
-    if not s_title:
-        sid = series.get("id") or ep.get("seriesId") or "?"
-        s_title = f"Series #{sid}"
-    s_title = s_title[:60]
-    ep_title = (ep.get("title") or "").strip()[:60]
-    snum = ep.get("seasonNumber", 0)
-    enum = ep.get("episodeNumber", 0)
-    code = f"S{snum:02d}E{enum:02d}"
-    suppressed = {"tba", "tbd", "", "unknown", "n/a", "none"}
-    if ep_title and ep_title.lower() not in suppressed:
-        return f"{s_title} – {ep_title} – {code}"
-    return f"{s_title} – {code}"
+# ─── Queue Scan ──────────────────────────────────────────────────────────────
+def needs_scan(inst_id: str) -> bool:
+    """True if this instance has never been scanned or scan is overdue."""
+    last = CONFIG.get("queue_last_scan", {}).get(inst_id)
+    if not last:
+        return True
+    try:
+        days_since = (datetime.utcnow() - datetime.fromisoformat(last)).days
+        return days_since >= CONFIG.get("scan_interval_days", 7)
+    except Exception:
+        return True
 
-# ─── Hunt: Sonarr ─────────────────────────────────────────────────────────────
-def hunt_sonarr_instance(inst: dict):
-    iid   = inst["id"]; name = inst["name"]
+
+def scan_sonarr_instance(inst: dict):
+    """Populate queue with ALL missing + upgradeable Sonarr episodes."""
+    iid = inst["id"]; name = inst["name"]
     client = ArrClient(name, inst["url"], inst["api_key"])
-    stats  = STATE["inst_stats"][iid]
-    mode   = CONFIG.get("sonarr_search_mode", "season")
-    lang   = CONFIG.get("language", "en")
-    do_upgrades = CONFIG.get("search_upgrades", True)
+    stats = STATE["inst_stats"].setdefault(iid, fresh_inst_stats())
+    stats["scan_status"] = "scanning"
+    log_act(name, msg("scan_start", name=name), "", "info")
 
-    # Build series ID → title cache once per hunt so ep titles are always correct
-    # even when Sonarr omits series.title in wanted/missing responses
     series_cache: dict[int, str] = {}
     try:
-        all_series = client.get("series")
-        for s in all_series:
+        for s in client.get("series"):
             sid = s.get("id")
             if sid and s.get("title"):
                 series_cache[int(sid)] = s["title"].strip()
     except Exception as e:
-        logger.debug(f"Series cache fetch failed for {name}: {e}")
+        logger.warning(f"Series cache for {name}: {e}")
 
-    def resolve_series_title(ep: dict) -> str:
-        """Return series title from cache or from embedded series object."""
-        # Try cache first (most reliable)
-        sid = ep.get("seriesId") or ep.get("series", {}).get("id")
-        if sid and int(sid) in series_cache:
-            return series_cache[int(sid)]
-        # Fall back to embedded fields
-        series = ep.get("series") or {}
-        return (series.get("title") or ep.get("seriesTitle") or "").strip()
-
-    def ep_title(ep: dict) -> str:
-        s_title = resolve_series_title(ep) or "?"
-        ep_t    = (ep.get("title") or "").strip()
-        snum    = ep.get("seasonNumber", 0)
-        enum    = ep.get("episodeNumber", 0)
-        code    = f"S{snum:02d}E{enum:02d}"
+    def _ep_label(ep: dict) -> str:
+        series_obj = ep.get("series", {}) or {}
+        sid = series_obj.get("id") or ep.get("seriesId")
+        s_title = (series_cache.get(int(sid), "") if sid else "") or \
+                  series_obj.get("title") or ep.get("seriesTitle") or "?"
+        ep_t  = (ep.get("title") or "").strip()
+        snum  = ep.get("seasonNumber", 0)
+        enum  = ep.get("episodeNumber", 0)
+        code  = f"S{snum:02d}E{enum:02d}"
         suppressed = {"tba", "tbd", "", "unknown", "n/a", "none"}
-        if ep_t and ep_t.lower() not in suppressed:
-            return f"{s_title} – {ep_t} – {code}"
-        return f"{s_title} – {code}"
+        return (f"{s_title[:60]} – {ep_t[:60]} – {code}"
+                if ep_t and ep_t.lower() not in suppressed
+                else f"{s_title[:60]} – {code}")
 
-    # ── Missing ──
+    do_upgrades = CONFIG.get("search_upgrades", True)
+    endpoints = [("wanted/missing", "episode")]
+    if do_upgrades:
+        endpoints.append(("wanted/cutoff", "episode_upgrade"))
+
+    for endpoint, item_type in endpoints:
+        seen_ids: set[int] = set()
+        page = 1
+        try:
+            while True:
+                data = client.get(endpoint, params={
+                    "page": page, "pageSize": 1000,
+                    "sortKey": "airDateUtc", "sortDir": "desc",
+                })
+                recs = data.get("records", [])
+                total_records = int(data.get("totalRecords", 0))
+                for ep in recs:
+                    eid = ep.get("id")
+                    if not eid:
+                        continue
+                    seen_ids.add(eid)
+                    series_obj = ep.get("series", {}) or {}
+                    series_id  = series_obj.get("id") or ep.get("seriesId")
+                    release_dt = (_pick_release_dt(ep, "airDate", "airDateUtc", "firstAired")
+                                  or _pick_release_dt(series_obj, "firstAired"))
+                    db.queue_upsert(
+                        service=iid, arr_type="sonarr", item_type=item_type,
+                        item_id=eid, title=_ep_label(ep),
+                        series_id=series_id,
+                        season_number=ep.get("seasonNumber"),
+                        release_dt=release_dt.strftime("%Y-%m-%d") if release_dt else None,
+                        release_year=_year(series_obj.get("year") or (ep.get("airDate") or "")[:4]),
+                        last_modified=series_obj.get("lastInfoSync"),
+                    )
+                if len(recs) < 1000 or page * 1000 >= total_records:
+                    break
+                page += 1
+            removed = db.queue_remove_stale(iid, item_type, seen_ids)
+            if removed:
+                logger.info(f"{name}: pruned {removed} stale {item_type} entries from queue")
+        except Exception as e:
+            log_act(name, msg("scan_error", name=name, err=str(e)[:100]), "", "error")
+
+    stats["missing_found"]  = db.queue_count(iid, "sonarr", "episode")
+    stats["upgrades_found"] = db.queue_count(iid, "sonarr", "episode_upgrade")
+    stats["queue_size"]     = stats["missing_found"] + stats["upgrades_found"]
+    stats["scan_status"]    = "idle"
+    CONFIG.setdefault("queue_last_scan", {})[iid] = datetime.utcnow().isoformat()
+    save_config(CONFIG)
+    log_act(name, msg("scan_done", name=name, n=stats["queue_size"]), "", "success")
+
+
+def scan_radarr_instance(inst: dict):
+    """Populate queue with ALL missing + upgradeable Radarr movies."""
+    iid = inst["id"]; name = inst["name"]
+    client = ArrClient(name, inst["url"], inst["api_key"])
+    stats = STATE["inst_stats"].setdefault(iid, fresh_inst_stats())
+    stats["scan_status"] = "scanning"
+    log_act(name, msg("scan_start", name=name), "", "info")
+
+    do_upgrades = CONFIG.get("search_upgrades", True)
+
+    missing_ids: set[int] = set()
     try:
-        data  = client.get("wanted/missing", params={"pageSize":500,"sortKey":"airDateUtc","sortDir":"desc"})
-        recs  = data.get("records", [])
-        random.shuffle(recs)  # random selection — avoids always hitting same items
-        stats["missing_found"] = int(data.get("totalRecords", len(recs)))
-        searched = 0
-        for ep in recs:
-            if STOP_EVENT.is_set() or searched >= CONFIG["max_searches_per_run"]: break
-            title = ep_title(ep)
-            series_obj = ep.get("series", {}) or {}
-            release_dt = _pick_release_dt(ep, "airDate", "airDateUtc", "firstAired", "year") or _pick_release_dt(series_obj, "year")
-            if not _is_released(release_dt):
-                stats["skipped_unreleased"] += 1
+        for movie in client.get("movie"):
+            if not movie.get("monitored") or movie.get("hasFile"):
                 continue
-            ok, reason = should_search(iid, "episode", ep["id"], release_dt=release_dt)
-            if not ok:
-                stats[f"skipped_{reason}"] += 1
-                if reason == "daily_limit":
-                    log_act(name, msg("daily_limit",today=db.count_today(),limit=CONFIG["daily_limit"]), "", "warning")
-                    lang = CONFIG.get("language","en")
-                    label = "Tageslimit erreicht" if lang=="de" else "Daily limit reached"
-                    desc  = (f"Heute: {db.count_today()}/{CONFIG['daily_limit']} Searches"
-                             if lang=="de" else
-                             f"Today: {db.count_today()}/{CONFIG['daily_limit']} searches")
-                    discord_send("limit", label, desc, name)
-                    return
+            mid = movie.get("id")
+            if not mid:
                 continue
-            year = _year(ep.get("series",{}).get("year") or ep.get("airDate","")[:4])
-            # Build command based on search mode
-            series_id = ep.get("series",{}).get("id", ep.get("seriesId"))
-            if mode == "series" and series_id:
-                command = {"name":"SeriesSearch","seriesId":series_id}
-            elif mode == "season" and series_id:
-                command = {"name":"SeasonSearch","seriesId":series_id,"seasonNumber":ep.get("seasonNumber",0)}
-            else:
-                command = {"name":"EpisodeSearch","episodeIds":[ep["id"]]}
-            result = do_search(client, iid, "episode", ep["id"], title, command,
-                               ep.get("series",{}).get("lastInfoSync"), year, series_id=series_id)
-            if result == "downloaded":
-                stats["missing_searched"] += 1
-                log_act(name, msg("missing"), title, "success")
-            searched += 1
-            time.sleep(1.5)
+            missing_ids.add(mid)
+            title  = str(movie.get("title", "?"))[:100]
+            year   = _year(movie.get("year"))
+            label  = f"{title} ({year})" if year else title
+            rel_dt = _pick_release_dt(movie, "digitalRelease", "physicalRelease",
+                                      "inCinemas", "releaseDate")
+            db.queue_upsert(
+                service=iid, arr_type="radarr", item_type="movie",
+                item_id=mid, title=label,
+                release_dt=rel_dt.strftime("%Y-%m-%d") if rel_dt else None,
+                release_year=year, last_modified=movie.get("lastInfoSync"),
+            )
+        db.queue_remove_stale(iid, "movie", missing_ids)
     except Exception as e:
-        log_act(name, msg("error"), str(e)[:200], "error")
+        log_act(name, msg("scan_error", name=name, err=str(e)[:100]), "", "error")
 
-    if not do_upgrades: return
+    if do_upgrades:
+        upgrade_ids: set[int] = set()
+        try:
+            data = client.get("wanted/cutoff", params={"pageSize": 1000})
+            for movie in data.get("records", []):
+                mid = movie.get("id")
+                if not mid:
+                    continue
+                upgrade_ids.add(mid)
+                title  = str(movie.get("title", "?"))[:100]
+                year   = _year(movie.get("year"))
+                label  = f"{title} ({year})" if year else title
+                rel_dt = _pick_release_dt(movie, "digitalRelease", "physicalRelease",
+                                          "inCinemas", "releaseDate")
+                db.queue_upsert(
+                    service=iid, arr_type="radarr", item_type="movie_upgrade",
+                    item_id=mid, title=label,
+                    release_dt=rel_dt.strftime("%Y-%m-%d") if rel_dt else None,
+                    release_year=year,
+                )
+            db.queue_remove_stale(iid, "movie_upgrade", upgrade_ids)
+        except Exception as e:
+            log_act(name, msg("scan_error", name=name, err=str(e)[:100]), "", "error")
 
-    # ── Upgrades ──
+    stats["missing_found"]  = db.queue_count(iid, "radarr", "movie")
+    stats["upgrades_found"] = db.queue_count(iid, "radarr", "movie_upgrade")
+    stats["queue_size"]     = stats["missing_found"] + stats["upgrades_found"]
+    stats["scan_status"]    = "idle"
+    CONFIG.setdefault("queue_last_scan", {})[iid] = datetime.utcnow().isoformat()
+    save_config(CONFIG)
+    log_act(name, msg("scan_done", name=name, n=stats["queue_size"]), "", "success")
+
+
+def run_scan_if_needed():
+    """Scan instances that are overdue for a queue refresh (online instances only)."""
+    to_scan = [
+        i for i in CONFIG["instances"]
+        if i.get("enabled") and i.get("api_key") and needs_scan(i["id"])
+        and STATE["inst_stats"].get(i["id"], {}).get("status") == "online"
+    ]
+    if not to_scan:
+        return
+    STATE["scan_running"] = True
     try:
-        data  = client.get("wanted/cutoff", params={"pageSize":500})
-        recs  = data.get("records", [])
-        random.shuffle(recs)  # random selection
-        stats["upgrades_found"] = int(data.get("totalRecords", len(recs)))
-        searched = 0
-        for ep in recs:
-            if STOP_EVENT.is_set() or searched >= CONFIG["max_searches_per_run"]: break
-            title = ep_title(ep)
-            series_obj = ep.get("series", {}) or {}
-            release_dt = _pick_release_dt(ep, "airDate", "airDateUtc", "firstAired", "year") or _pick_release_dt(series_obj, "year")
-            ok, reason = should_search(iid, "episode_upgrade", ep["id"], release_dt=release_dt)
-            if not ok:
-                stats[f"skipped_{reason}"] += 1
-                if reason == "daily_limit": return
-                continue
-            year = _year(ep.get("series",{}).get("year"))
-            result = do_search(client, iid, "episode_upgrade", ep["id"], title,
-                               {"name":"EpisodeSearch","episodeIds":[ep["id"]]}, year=year, series_id=series_obj.get("id") or ep.get("seriesId"))
-            if result == "downloaded":
+        for inst in to_scan:
+            if STOP_EVENT.is_set():
+                break
+            if inst["type"] == "sonarr":
+                scan_sonarr_instance(inst)
+            elif inst["type"] == "radarr":
+                scan_radarr_instance(inst)
+    finally:
+        STATE["scan_running"] = False
+
+
+# ─── Hunt: Sonarr (dispatch from queue) ──────────────────────────────────────
+def hunt_sonarr_instance(inst: dict):
+    iid    = inst["id"]; name = inst["name"]
+    client = ArrClient(name, inst["url"], inst["api_key"])
+    stats  = STATE["inst_stats"][iid]
+    mode   = CONFIG.get("sonarr_search_mode", "season")
+    do_upgrades = CONFIG.get("search_upgrades", True)
+
+    stats["missing_found"]  = db.queue_count(iid, "sonarr", "episode")
+    stats["upgrades_found"] = db.queue_count(iid, "sonarr", "episode_upgrade")
+    stats["queue_size"]     = stats["missing_found"] + stats["upgrades_found"]
+
+    cooldown_days = CONFIG.get("cooldown_days", 7)
+    items = db.queue_get_pending(iid, "sonarr", cooldown_days, limit=500)
+    if not do_upgrades:
+        items = [x for x in items if x["item_type"] == "episode"]
+
+    if not items:
+        return
+
+    random.shuffle(items)
+    searched = 0
+    dispatched_keys: set = set()  # within-cycle dedup for season/series mode
+
+    for item in items:
+        if STOP_EVENT.is_set() or searched >= CONFIG["max_searches_per_run"]:
+            break
+        if daily_limit_reached():
+            log_act(name, msg("daily_limit", today=db.count_today(),
+                              limit=CONFIG["daily_limit"]), "", "warning")
+            label = "Daily limit reached"
+            desc = f"Today: {db.count_today()}/{CONFIG['daily_limit']} searches"
+            discord_send("limit", label, desc, name)
+            return
+
+        item_type  = item["item_type"]
+        item_id    = item["item_id"]
+        series_id  = item.get("series_id")
+        season_num = item.get("season_number")
+        title      = item["title"]
+        year       = item.get("release_year")
+
+        if mode == "series" and series_id:
+            dedup_key = ("series", series_id)
+            command   = {"name": "SeriesSearch", "seriesId": series_id}
+        elif mode == "season" and series_id and season_num is not None:
+            dedup_key = ("season", series_id, season_num)
+            command   = {"name": "SeasonSearch", "seriesId": series_id,
+                         "seasonNumber": season_num}
+        else:
+            dedup_key = ("episode", item_id)
+            command   = {"name": "EpisodeSearch", "episodeIds": [item_id]}
+
+        if dedup_key in dispatched_keys:
+            continue
+        dispatched_keys.add(dedup_key)
+
+        result = do_search(client, iid, item_type, item_id, title, command, year=year)
+        searched += 1
+        if result == "dispatched":
+            if "upgrade" in item_type:
                 stats["upgrades_searched"] += 1
                 log_act(name, msg("upgrade"), title, "warning")
-            searched += 1
-            time.sleep(1.5)
-    except Exception as e:
-        log_act(name, msg("error"), str(e)[:200], "error")
+            else:
+                stats["missing_searched"] += 1
+                log_act(name, msg("missing"), title, "success")
+        time.sleep(1.5)
 
-# ─── Hunt: Radarr ─────────────────────────────────────────────────────────────
+
+# ─── Hunt: Radarr (dispatch from queue) ──────────────────────────────────────
 def hunt_radarr_instance(inst: dict):
-    iid   = inst["id"]; name = inst["name"]
+    iid    = inst["id"]; name = inst["name"]
     client = ArrClient(name, inst["url"], inst["api_key"])
     stats  = STATE["inst_stats"][iid]
     do_upgrades = CONFIG.get("search_upgrades", True)
 
-    # ── Missing ──
-    try:
-        movies  = client.get("movie")
-        random.shuffle(movies)  # random selection
-        missing = [m for m in movies if not m.get("hasFile") and m.get("monitored")]
-        stats["missing_found"] = len(missing)
-        searched = 0
-        for movie in missing:
-            if STOP_EVENT.is_set() or searched >= CONFIG["max_searches_per_run"]: break
-            title = str(movie.get("title","?"))[:100]
-            year  = _year(movie.get("year"))
-            if year: title = f"{title} ({year})"
-            release_dt = _pick_release_dt(movie, "digitalRelease", "physicalRelease", "inCinemas", "releaseDate", "year")
-            if not _is_released(release_dt):
-                stats["skipped_unreleased"] += 1
-                continue
-            ok, reason = should_search(iid, "movie", movie["id"], release_dt=release_dt)
-            if not ok:
-                stats[f"skipped_{reason}"] += 1
-                if reason == "daily_limit":
-                    log_act(name, msg("daily_limit",today=db.count_today(),limit=CONFIG["daily_limit"]), "", "warning")
-                    return
-                continue
-            result = do_search(client, iid, "movie", movie["id"], title,
-                               {"name":"MoviesSearch","movieIds":[movie["id"]]},
-                               movie.get("lastInfoSync"), _year(movie.get("year")))
-            if result == "downloaded":
-                stats["missing_searched"] += 1
-                log_act(name, msg("missing"), title, "success")
-            searched += 1
-            time.sleep(1.5)
-    except Exception as e:
-        log_act(name, msg("error"), str(e)[:200], "error")
+    stats["missing_found"]  = db.queue_count(iid, "radarr", "movie")
+    stats["upgrades_found"] = db.queue_count(iid, "radarr", "movie_upgrade")
+    stats["queue_size"]     = stats["missing_found"] + stats["upgrades_found"]
 
-    if not do_upgrades: return
+    cooldown_days = CONFIG.get("cooldown_days", 7)
+    items = db.queue_get_pending(iid, "radarr", cooldown_days, limit=500)
+    if not do_upgrades:
+        items = [x for x in items if x["item_type"] == "movie"]
 
-    # ── Upgrades ──
-    try:
-        data  = client.get("wanted/cutoff", params={"pageSize":500})
-        recs  = data.get("records", [])
-        random.shuffle(recs)  # random selection
-        stats["upgrades_found"] = int(data.get("totalRecords", len(recs)))
-        searched = 0
-        for movie in recs:
-            if STOP_EVENT.is_set() or searched >= CONFIG["max_searches_per_run"]: break
-            title = str(movie.get("title","?"))[:100]
-            year  = _year(movie.get("year"))
-            if year: title = f"{title} ({year})"
-            release_dt = _pick_release_dt(movie, "digitalRelease", "physicalRelease", "inCinemas", "releaseDate", "year")
-            ok, reason = should_search(iid, "movie_upgrade", movie["id"], release_dt=release_dt)
-            if not ok:
-                stats[f"skipped_{reason}"] += 1
-                if reason == "daily_limit": return
-                continue
-            result = do_search(client, iid, "movie_upgrade", movie["id"], title,
-                               {"name":"MoviesSearch","movieIds":[movie["id"]]},
-                               year=_year(movie.get("year")))
-            if result == "downloaded":
+    if not items:
+        return
+
+    random.shuffle(items)
+    searched = 0
+    for movie in items:
+        if STOP_EVENT.is_set() or searched >= CONFIG["max_searches_per_run"]:
+            break
+        if daily_limit_reached():
+            lang = CONFIG.get("language", "en")
+            log_act(name, msg("daily_limit", today=db.count_today(),
+                              limit=CONFIG["daily_limit"]), "", "warning")
+            return
+
+        item_type = movie["item_type"]
+        item_id   = movie["item_id"]
+        title     = movie["title"]
+        year      = movie.get("release_year")
+        result = do_search(client, iid, item_type, item_id, title,
+                           {"name": "MoviesSearch", "movieIds": [item_id]}, year=year)
+        searched += 1
+        if result == "dispatched":
+            if "upgrade" in item_type:
                 stats["upgrades_searched"] += 1
                 log_act(name, msg("upgrade"), title, "warning")
-            searched += 1
-            time.sleep(1.5)
-    except Exception as e:
-        log_act(name, msg("error"), str(e)[:200], "error")
+            else:
+                stats["missing_searched"] += 1
+                log_act(name, msg("missing"), title, "success")
+        time.sleep(1.5)
 
 # ─── Ping ─────────────────────────────────────────────────────────────────────
 def ping_all():
@@ -956,11 +993,7 @@ def ping_all():
         stats["version"] = ver
         # Notify only on transition online→offline
         if not ok and prev_status == "online":
-            lang  = CONFIG.get("language","de")
-            label = "Instanz offline" if lang=="de" else "Instance offline"
-            desc  = (f"**{inst['name']}** ist nicht erreichbar" if lang=="de"
-                     else f"**{inst['name']}** is unreachable")
-            discord_send("offline", label, desc, inst["name"])
+            discord_send("offline", "Instance offline", f"**{inst['name']}** is unreachable", inst["name"])
 
 # ─── Cycle & Loop ─────────────────────────────────────────────────────────────
 def run_cycle():
@@ -980,15 +1013,12 @@ def run_cycle():
             for k in ("missing_searched","upgrades_searched","skipped_cooldown","skipped_daily","skipped_unreleased"):
                 s[k] = 0
         ping_all()
+        run_scan_if_needed()  # populate/refresh queue for overdue instances
         removed = db.purge_expired(CONFIG.get("cooldown_days",7))
         if removed:
             log_act("System", msg("db_pruned", n=removed), "", "info")
             # Notify Discord: items back off cooldown
-            lang = CONFIG.get("language","de")
-            label = "Cooldown abgelaufen" if lang=="de" else "Cooldown expired"
-            desc  = (f"{removed} Item(s) wieder verfügbar" if lang=="de"
-                     else f"{removed} item(s) available again")
-            discord_send("cooldown", label, desc, "System")
+            discord_send("cooldown", "Cooldown expired", f"{removed} item(s) available again", "System")
         for inst in CONFIG["instances"]:
             if STOP_EVENT.is_set(): break
             if not inst.get("enabled") or not inst.get("api_key"): continue
@@ -1002,8 +1032,12 @@ def run_cycle():
         CYCLE_LOCK.release()
 
 def hunt_loop():
-    """Wait first so user can configure settings, then hunt on schedule."""
+    """Run initial scan + dispatch immediately, then hunt on schedule."""
     STATE["running"] = True
+    # Immediate first cycle: scan all instances and start dispatching right away
+    if not STOP_EVENT.is_set():
+        try: run_cycle()
+        except Exception as e: log_act("System", msg("error"), str(e)[:200], "error")
     while not STOP_EVENT.is_set():
         # ── Wait ──
         base  = CONFIG["hunt_missing_delay"]
@@ -1056,29 +1090,29 @@ def logout():
 def api_setup_ping():
     d = request.get_json(silent=True) or {}
     itype = safe_str(d.get("type",""), 10)
-    if itype not in ALLOWED_TYPES: return jsonify({"ok":False,"msg":"Unbekannter Typ"}),400
+    if itype not in ALLOWED_TYPES: return jsonify({"ok":False,"msg":"Unknown type"}),400
     url = safe_str(d.get("url",""), URL_MAX_LEN)
     ok, err = validate_internal_service_url(url)
-    if not ok: return jsonify({"ok":False,"msg":f"URL ungültig: {err}"}),400
+    if not ok: return jsonify({"ok":False,"msg":f"Invalid URL: {err}"}),400
     key = safe_str(d.get("api_key",""), 128)
     ok, err = validate_api_key(key)
     if not ok: return jsonify({"ok":False,"msg":f"API Key: {err}"}),400
     try:
         ok, ver = ArrClient(itype, url, key).ping()
         return jsonify({"ok":ok,"version":ver})
-    except: return jsonify({"ok":False,"msg":"Verbindung fehlgeschlagen"})
+    except: return jsonify({"ok":False,"msg":"Connection failed"})
 
 @app.route("/api/setup/complete", methods=["POST"])
 def api_setup_complete():
     d = request.get_json(silent=True) or {}
     instances = d.get("instances",[])
     if not isinstance(instances,list) or len(instances)==0:
-        return jsonify({"ok":False,"errors":["Mindestens eine Instanz erforderlich"]}),400
+        return jsonify({"ok":False,"errors":["At least one instance is required"]}),400
     if len(instances) > MAX_INSTANCES:
-        return jsonify({"ok":False,"errors":[f"Maximal {MAX_INSTANCES} Instanzen"]}),400
+        return jsonify({"ok":False,"errors":[f"Maximum {MAX_INSTANCES} instances"]}),400
     errors=[]; validated=[]
-    req_lang = safe_str(d.get("language","en"),5)
-    is_de = req_lang == "de"
+    req_lang = "en"
+    is_de = False
     for i, inst in enumerate(instances):
         nm    = safe_str(inst.get("name",""),40).strip()
         itype = safe_str(inst.get("type",""),10)
@@ -1086,15 +1120,14 @@ def api_setup_complete():
         key   = safe_str(inst.get("api_key",""),128)
         label = f"#{i+1} ({nm or '?'})"
         ok,e=validate_name(nm);    errors+=[f"{label} {'Name' if is_de else 'Name'}: {e}"]    if not ok else []
-        if itype not in ALLOWED_TYPES: errors.append(f"{label}: {'Unbekannter Typ' if is_de else 'Unknown type'} '{itype}'")
+        if itype not in ALLOWED_TYPES: errors.append(f"{label}: Unknown type '{itype}'")
         ok,e=validate_url(url);    errors+=[f"{label} URL: {e}"]     if not ok else []
         ok,e=validate_api_key(key);errors+=[f"{label} API Key: {e}"] if not ok else []
         if not errors:
             validated.append({"id":inst.get("id") or make_id(),"type":itype,
                 "name":nm.strip(),"url":url,"api_key":key,"enabled":True})
     if errors: return jsonify({"ok":False,"errors":errors}),400
-    lang = safe_str(d.get("language","de"),5)
-    if lang not in ALLOWED_LANGUAGES: lang = "de"
+    lang = "en"
     CONFIG["instances"]      = validated
     CONFIG["language"]       = lang
     CONFIG["setup_complete"] = True
@@ -1136,12 +1169,12 @@ def api_instances_get():
 @app.route("/api/instances", methods=["POST"])
 def api_instances_add():
     if len(CONFIG["instances"]) >= MAX_INSTANCES:
-        return jsonify({"ok":False,"error":f"Maximal {MAX_INSTANCES} Instanzen"}),400
+        return jsonify({"ok":False,"error":f"Maximum {MAX_INSTANCES} instances"}),400
     d=request.get_json(silent=True) or {}; errors=[]
     nm=safe_str(d.get("name",""),40); itype=safe_str(d.get("type",""),10)
     url=safe_str(d.get("url",""),URL_MAX_LEN); key=safe_str(d.get("api_key",""),128)
     ok,e=validate_name(nm);    errors+=[f"Name: {e}"]    if not ok else []
-    if itype not in ALLOWED_TYPES: errors.append(f"Unbekannter Typ '{itype}'")
+    if itype not in ALLOWED_TYPES: errors.append(f"Unknown type '{itype}'")
     ok,e=validate_url(url);    errors+=[f"URL: {e}"]     if not ok else []
     ok,e=validate_api_key(key);errors+=[f"API Key: {e}"] if not ok else []
     if errors: return jsonify({"ok":False,"errors":errors}),400
@@ -1153,7 +1186,7 @@ def api_instances_add():
 @app.route("/api/instances/<inst_id>", methods=["PATCH"])
 def api_instances_update(inst_id:str):
     inst = next((i for i in CONFIG["instances"] if i["id"]==inst_id), None)
-    if not inst: return jsonify({"ok":False,"error":"Nicht gefunden"}),404
+    if not inst: return jsonify({"ok":False,"error":"Not found"}),404
     d = request.get_json(silent=True) or {}
     if "name" in d:
         nm=safe_str(d["name"],40); ok,e=validate_name(nm)
@@ -1174,21 +1207,21 @@ def api_instances_update(inst_id:str):
 def api_instances_delete(inst_id:str):
     before = len(CONFIG["instances"])
     CONFIG["instances"] = [i for i in CONFIG["instances"] if i["id"]!=inst_id]
-    if len(CONFIG["instances"]) == before: return jsonify({"ok":False,"error":"Nicht gefunden"}),404
+    if len(CONFIG["instances"]) == before: return jsonify({"ok":False,"error":"Not found"}),404
     STATE["inst_stats"].pop(inst_id,None); save_config(CONFIG)
     return jsonify({"ok":True})
 
 @app.route("/api/instances/<inst_id>/ping")
 def api_instances_ping(inst_id:str):
     inst = next((i for i in CONFIG["instances"] if i["id"]==inst_id), None)
-    if not inst: return jsonify({"ok":False,"error":"Nicht gefunden"}),404
-    if not inst.get("api_key"): return jsonify({"ok":False,"msg":"Kein API Key"})
+    if not inst: return jsonify({"ok":False,"error":"Not found"}),404
+    if not inst.get("api_key"): return jsonify({"ok":False,"msg":"Missing API key"})
     try:
         ok,ver = ArrClient(inst["name"],inst["url"],inst["api_key"]).ping()
         STATE["inst_stats"].setdefault(inst_id,fresh_inst_stats())["status"] = "online" if ok else "offline"
         STATE["inst_stats"][inst_id]["version"] = ver
         return jsonify({"ok":ok,"version":ver})
-    except: return jsonify({"ok":False,"msg":"Verbindung fehlgeschlagen"})
+    except: return jsonify({"ok":False,"msg":"Connection failed"})
 
 # ── Main API ──────────────────────────────────────────────────────────────────
 @app.route("/api/state")
@@ -1204,6 +1237,8 @@ def api_state():
         "server_time": fmt_time(now_local()),
         "server_tz":   CONFIG.get("timezone","UTC"),
         "activity_log":list(STATE["activity_log"])[:60],
+        "scan_running":    STATE.get("scan_running", False),
+        "queue_last_scan": CONFIG.get("queue_last_scan", {}),
         "config":{
             "hunt_missing_delay":   CONFIG["hunt_missing_delay"],
             "hunt_upgrade_delay":   CONFIG["hunt_upgrade_delay"],
@@ -1214,6 +1249,7 @@ def api_state():
             "jitter_max":           CONFIG.get("jitter_max",300),
             "sonarr_search_mode":   CONFIG.get("sonarr_search_mode","season"),
             "search_upgrades":      CONFIG.get("search_upgrades",True),
+            "scan_interval_days":   CONFIG.get("scan_interval_days",7),
             "dry_run":              CONFIG["dry_run"],
             "language":             CONFIG["language"],
             "theme":                CONFIG.get("theme","dark"),
@@ -1233,7 +1269,7 @@ def api_state():
 def api_control():
     global hunt_thread
     d=request.get_json(silent=True) or {}; action=d.get("action")
-    if action not in ALLOWED_ACTIONS: return jsonify({"ok":False,"error":"Ungültige Aktion"}),400
+    if action not in ALLOWED_ACTIONS: return jsonify({"ok":False,"error":"Invalid action"}),400
     if action=="start" and not STATE["running"]:
         STOP_EVENT.clear(); hunt_thread=threading.Thread(target=hunt_loop,daemon=True); hunt_thread.start()
     elif action=="stop": STOP_EVENT.set()
@@ -1246,7 +1282,7 @@ def api_control():
 @app.route("/api/config", methods=["POST"])
 def api_config():
     d=request.get_json(silent=True)
-    if d is None: return jsonify({"ok":False,"error":"Ungültiges JSON"}),400
+    if d is None: return jsonify({"ok":False,"error":"Invalid JSON"}),400
     # Enforce minimum 15 minute interval
     raw_delay = clamp_int(d.get("hunt_missing_delay", CONFIG["hunt_missing_delay"]), MIN_INTERVAL_SEC, 86400, CONFIG["hunt_missing_delay"])
     CONFIG["hunt_missing_delay"]   = raw_delay
@@ -1256,15 +1292,16 @@ def api_config():
     CONFIG["cooldown_days"]        = clamp_int(d.get("cooldown_days",        CONFIG.get("cooldown_days",7)),  1, 365, CONFIG.get("cooldown_days",7))
     CONFIG["request_timeout"]      = clamp_int(d.get("request_timeout",      CONFIG.get("request_timeout",30)),5, 300, 30)
     CONFIG["jitter_max"]           = clamp_int(d.get("jitter_max",           CONFIG.get("jitter_max",300)),   0, 3600, 300)
-    if "dry_run"         in d: CONFIG["dry_run"]         = bool(d["dry_run"])
-    if "auto_start"      in d: CONFIG["auto_start"]      = bool(d["auto_start"])
-    if "search_upgrades" in d: CONFIG["search_upgrades"] = bool(d["search_upgrades"])
+    if "dry_run"           in d: CONFIG["dry_run"]           = bool(d["dry_run"])
+    if "auto_start"        in d: CONFIG["auto_start"]        = bool(d["auto_start"])
+    if "search_upgrades"   in d: CONFIG["search_upgrades"]   = bool(d["search_upgrades"])
+    if "scan_interval_days" in d:
+        CONFIG["scan_interval_days"] = clamp_int(d["scan_interval_days"], 1, 365, 7)
     mode = safe_str(d.get("sonarr_search_mode",""), 10)
     if mode in ALLOWED_SONARR_MODES: CONFIG["sonarr_search_mode"] = mode
     theme = safe_str(d.get("theme", CONFIG.get("theme","dark")), 10)
     if theme in ALLOWED_THEMES: CONFIG["theme"] = theme
-    lang = safe_str(d.get("language", CONFIG["language"]), 5)
-    if lang in ALLOWED_LANGUAGES: CONFIG["language"] = lang
+    CONFIG["language"] = "en"
     tz = safe_str(d.get("timezone", CONFIG.get("timezone","UTC")), 50)
     try: zoneinfo.ZoneInfo(tz); CONFIG["timezone"] = tz
     except Exception: pass  # keep current if invalid
@@ -1312,19 +1349,13 @@ def api_history_stats():
 @app.route("/api/history/clear", methods=["POST"])
 def api_history_clear():
     n = db.clear_all()
-    is_de = CONFIG.get("language", "de") == "de"
-    action = "DB geleert" if is_de else "DB cleared"
-    item = f"{n} Einträge" if is_de else f"{n} entries"
-    log_act("System", action, item, "warning")
+    log_act("System", "DB cleared", f"{n} entries", "warning")
     return jsonify({"ok":True,"removed":n})
 
 @app.route("/api/history/clear/<inst_id>", methods=["POST"])
 def api_history_clear_inst(inst_id:str):
     n = db.clear_service(inst_id)
-    is_de = CONFIG.get("language", "de") == "de"
-    action = f"DB geleert ({inst_id})" if is_de else f"DB cleared ({inst_id})"
-    item = f"{n} Einträge" if is_de else f"{n} entries"
-    log_act("System", action, item, "warning")
+    log_act("System", f"DB cleared ({inst_id})", f"{n} entries", "warning")
     return jsonify({"ok":True,"removed":n})
 
 # ── Timezone helper ───────────────────────────────────────────────────────────
@@ -1345,43 +1376,25 @@ def api_timezones():
 def api_discord_test():
     dc = CONFIG.get("discord", {})
     if not dc.get("webhook_url",""):
-        return jsonify({"ok":False,"error":"Kein Webhook URL konfiguriert" if CONFIG.get("language","de")=="de" else "No webhook URL configured"}),400
-    lang = CONFIG.get("language","de")
-    if lang == "de":
-        label = "🔔 mediastarrv2 Test"
-        desc  = "Dies ist eine Test-Benachrichtigung von mediastarrv2 v6.\nWenn du das siehst, ist der Webhook korrekt konfiguriert."
-        f_status  = "Status"
-        f_ok      = "✓ Verbunden"
-        f_ver     = "Version"
-        f_inst    = "Instanzen"
-        f_enabled = "Benachrichtigungen"
-    else:
-        label = "🔔 mediastarrv2 Test"
-        desc  = "This is a test notification from mediastarrv2 v6.\nIf you see this, the webhook is configured correctly."
-        f_status  = "Status"
-        f_ok      = "✓ Connected"
-        f_ver     = "Version"
-        f_inst    = "Instances"
-        f_enabled = "Notifications"
-
-    if lang == "de":
-        enabled_parts = [
-            "Fehlend" if dc.get("notify_missing") else "",
-            "Upgrade" if dc.get("notify_upgrade") else "",
-            "Cooldown" if dc.get("notify_cooldown") else "",
-        ]
-    else:
-        enabled_parts = [
-            "Missing" if dc.get("notify_missing") else "",
-            "Upgrade" if dc.get("notify_upgrade") else "",
-            "Cooldown" if dc.get("notify_cooldown") else "",
-        ]
+        return jsonify({"ok":False,"error":"No webhook URL configured"}),400
+    label = "🔔 MediaHunter Test"
+    desc  = "This is a test notification from MediaHunter v1.0 Beta.\nIf you see this, the webhook is configured correctly."
+    f_status  = "Status"
+    f_ok      = "✓ Connected"
+    f_ver     = "Version"
+    f_inst    = "Instances"
+    f_enabled = "Notifications"
+    enabled_parts = [
+        "Missing" if dc.get("notify_missing") else "",
+        "Upgrade" if dc.get("notify_upgrade") else "",
+        "Cooldown" if dc.get("notify_cooldown") else "",
+    ]
     enabled_text = " ".join([p for p in enabled_parts if p]) or "—"
 
     active = len([i for i in CONFIG["instances"] if i.get("enabled")])
     fields = [
         {"name": f_status,  "value": f_ok, "inline": True},
-        {"name": f_ver,     "value": "v6.0.2", "inline": True},
+        {"name": f_ver,     "value": "v1.0 Beta", "inline": True},
         {"name": f_inst,    "value": str(active), "inline": True},
         {"name": f_enabled, "value": enabled_text, "inline": False},
     ]
@@ -1398,10 +1411,48 @@ def api_discord_stats_now():
     """Manually trigger a stats report."""
     dc = CONFIG.get("discord", {})
     if not dc.get("webhook_url",""):
-        lang = CONFIG.get("language","de")
-        return jsonify({"ok":False,"error":"Kein Webhook URL konfiguriert" if lang=="de" else "No webhook URL"}),400
+        return jsonify({"ok":False,"error":"No webhook URL"}),400
     discord_send_stats()
     return jsonify({"ok": True})
+
+
+# ── Queue management ──────────────────────────────────────────────────────────
+@app.route("/api/queue/scan", methods=["POST"])
+def api_queue_scan():
+    """Trigger an immediate full rescan of all instances (clears and rebuilds queue)."""
+    if STATE.get("scan_running"):
+        return jsonify({"ok": False, "error": "Scan already in progress"}), 409
+    CONFIG["queue_last_scan"] = {}
+    save_config(CONFIG)
+    def _bg():
+        ping_all()
+        _ensure_inst_stats()
+        run_scan_if_needed()
+    threading.Thread(target=_bg, daemon=True).start()
+    return jsonify({"ok": True, "message": "Scan started"})
+
+
+@app.route("/api/queue/stats")
+def api_queue_stats():
+    stats = {}
+    for inst in CONFIG["instances"]:
+        iid   = inst["id"]
+        atype = inst.get("type", "sonarr")
+        mt    = "episode" if atype == "sonarr" else "movie"
+        mtu   = "episode_upgrade" if atype == "sonarr" else "movie_upgrade"
+        stats[iid] = {
+            "name":      inst["name"],
+            "type":      atype,
+            "total":     db.queue_count(iid),
+            "missing":   db.queue_count(iid, atype, mt),
+            "upgrades":  db.queue_count(iid, atype, mtu),
+            "last_scan": CONFIG.get("queue_last_scan", {}).get(iid),
+        }
+    return jsonify({
+        "ok":           True,
+        "stats":        stats,
+        "scan_running": STATE.get("scan_running", False),
+    })
 
 
 # ─── Startup ──────────────────────────────────────────────────────────────────

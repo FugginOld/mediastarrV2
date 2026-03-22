@@ -1,14 +1,14 @@
 ﻿services:
-  mediastarrv2:
-    image: fugginold/mediastarrv2:latest
-    container_name: mediastarrv2
+  mediahunter:
+    image: fugginold/mediahunter:latest
+    container_name: mediahunter
     restart: unless-stopped
     ports:
       - "7979:7979"
     volumes:
-      - /mnt/user/appdata/mediastarrv2:/data
+      - /mnt/user/appdata/mediahunter:/data
     # environment:
-    #   - MEDIASTARR_PASSWORD=change-me
+    #   - MEDIAHUNTER_PASSWORD=change-me
 
 
 

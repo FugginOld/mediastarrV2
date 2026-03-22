@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>mediastarrv2 Login</title>
+  <title>MediaHunter Login</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='icon.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
@@ -38,17 +40,31 @@
     }
     .accent { height: 3px; background: linear-gradient(90deg, var(--accent), #ff9a68); }
     .body { padding: 28px; }
+    .login-logo {
+      display: block;
+      width: 104px;
+      height: 104px;
+      margin: 0 auto 18px;
+      object-fit: cover;
+      object-position: center 28%;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 107, 43, 0.24);
+      background: linear-gradient(180deg, rgba(255,107,43,0.12), rgba(255,154,104,0.04));
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    }
     h1 {
       margin: 0 0 8px;
       font-family: 'Bricolage Grotesque', sans-serif;
       font-size: 30px;
       line-height: 1;
+      text-align: center;
     }
     p {
       margin: 0 0 20px;
       color: var(--muted);
       font-size: 12px;
       line-height: 1.6;
+      text-align: center;
     }
     label {
       display: block;
@@ -95,8 +111,9 @@
   <form class="card" method="post" action="/login">
     <div class="accent"></div>
     <div class="body">
-      <h1>Media<span style="color: var(--accent)">starr</span></h1>
-      <p>Dashboard access is protected. Enter the password configured with `MEDIASTARR_PASSWORD`.</p>
+      <img class="login-logo" src="{{ url_for('static', filename='logo.png') }}" alt="MediaHunter logo">
+      <h1>Media<span style="color: var(--accent)">Hunter</span></h1>
+      <p>Dashboard access is protected. Enter the password configured with `MEDIAHUNTER_PASSWORD`.</p>
       {% if error %}
       <div class="error">{{ error }}</div>
       {% endif %}
