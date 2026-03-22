@@ -204,15 +204,25 @@ def get_history(limit: int = 300, service: str = "",
     return [dict(r) for r in rows]
 
 
-def count_today() -> int:
-    """Number of confirmed downloader requests today (UTC date)."""
+def count_today(since_iso: str = "") -> int:
+    """Number of confirmed downloader requests today (UTC date).
+
+    Optional since_iso limits counting to events at/after that timestamp.
+    """
     conn = _get_conn()
     today = datetime.utcnow().strftime("%Y-%m-%d")
     with _lock:
-        row = conn.execute("""
-            SELECT COUNT(*) AS n FROM grab_events
-            WHERE grabbed_at LIKE ?
-        """, (today + "%",)).fetchone()
+        if since_iso:
+            row = conn.execute("""
+                SELECT COUNT(*) AS n FROM grab_events
+                WHERE grabbed_at LIKE ?
+                  AND grabbed_at >= ?
+            """, (today + "%", since_iso)).fetchone()
+        else:
+            row = conn.execute("""
+                SELECT COUNT(*) AS n FROM grab_events
+                WHERE grabbed_at LIKE ?
+            """, (today + "%",)).fetchone()
     return row["n"] if row else 0
 
 
@@ -269,18 +279,23 @@ def purge_expired(cooldown_days: int) -> int:
 def clear_service(service: str) -> int:
     conn = _get_conn()
     with _lock:
-        cur = conn.execute(
+        # Keep history and daily-limit source in sync for per-service clear.
+        cur_hist = conn.execute(
             "DELETE FROM search_history WHERE service=?", (service,))
+        cur_grab = conn.execute(
+            "DELETE FROM grab_events WHERE service=?", (service,))
         conn.commit()
-    return cur.rowcount
+    return cur_hist.rowcount + cur_grab.rowcount
 
 
 def clear_all() -> int:
     conn = _get_conn()
     with _lock:
-        cur = conn.execute("DELETE FROM search_history")
+        # Reset both tracked search history and confirmed grab counters.
+        cur_hist = conn.execute("DELETE FROM search_history")
+        cur_grab = conn.execute("DELETE FROM grab_events")
         conn.commit()
-    return cur.rowcount
+    return cur_hist.rowcount + cur_grab.rowcount
 
 
 # ─── Queue (media_queue table) ────────────────────────────────────────────────

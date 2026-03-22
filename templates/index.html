@@ -482,19 +482,19 @@
 
           <!-- Overview -->
           <div class="card">
-            <!-- Daily limit bar -->
+            <div class="stat-card-label" id="st-lbl-total">Total searches</div>
             <div class="limit-bar-wrap">
-              <div class="limit-bar-header">
+            <div class="stat-card-sub" id="st-sub-total">in SQLite DB</div>
                 <span class="limit-bar-label" id="daily-limit-label">Daily limit</span>
                 <span class="limit-bar-count" id="daily-counter">0 / —</span>
-              </div>
+            <div class="stat-card-label" id="st-lbl-today">Today</div>
               <div class="limit-bar-track"><div class="limit-bar-fill" id="daily-bar"></div></div>
               <div class="limit-bar-hint" id="daily-hint">—</div>
             </div>
             <div class="card-body" style="padding-top:8px">
-              <div class="overview-rows">
+            <div class="stat-card-label" id="st-lbl-cycles">Cycles total</div>
                 <div class="ov-row"><span class="ov-label" data-i18n="ov_missing_lbl">Missing interval</span><span class="ov-val" id="ov-missing">—</span></div>
-                <div class="ov-row"><span class="ov-label" data-i18n="ov_max_lbl">Max per run</span><span class="ov-val" id="ov-max">—</span></div>
+            <div class="stat-card-sub" id="st-sub-cycles">since start</div>
                 <div class="ov-row"><span class="ov-label" data-i18n="ov_cooldown_lbl">Cooldown</span><span class="ov-val" style="color:var(--blue)" id="ov-cooldown">—</span></div>
                 <div class="ov-row"><span class="ov-label" data-i18n="ov_db_lbl">DB entries</span><span class="ov-val" style="color:var(--yellow)" id="ov-db">0</span></div>
                 <div class="ov-row"><span class="ov-label" data-i18n="ov_dry_lbl">Dry Run</span><span class="ov-val" id="ov-dry">—</span></div>
@@ -787,19 +787,19 @@
     <!-- KPI Row -->
     <div class="stats-grid" style="grid-column:1/-1">
       <div class="stat-card">
-        <div class="stat-card-label" id="st-lbl-total">Gesamt Searches</div>
+        <div class="stat-card-label" id="st-lbl-total">Total searches</div>
         <div class="stat-card-value" id="st-total">—</div>
-        <div class="stat-card-sub" id="st-sub-total">in der SQLite-DB</div>
+        <div class="stat-card-sub" id="st-sub-total">in SQLite DB</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-label" id="st-lbl-today">Heute</div>
+        <div class="stat-card-label" id="st-lbl-today">Today</div>
         <div class="stat-card-value" id="st-today" style="color:var(--accent)">—</div>
-        <div class="stat-card-sub" id="st-today-sub">von — Limit</div>
+        <div class="stat-card-sub" id="st-today-sub">of — limit</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-label" id="st-lbl-cycles">Zyklen gesamt</div>
+        <div class="stat-card-label" id="st-lbl-cycles">Cycles total</div>
         <div class="stat-card-value" id="st-cycles">—</div>
-        <div class="stat-card-sub" id="st-sub-cycles">seit Start</div>
+        <div class="stat-card-sub" id="st-sub-cycles">since start</div>
       </div>
       <div class="stat-card">
         <div class="stat-card-label" id="st-lbl-instances">Active instances</div>
@@ -812,7 +812,7 @@
     <div class="chart-card">
       <div class="chart-card-hd">
         <div class="chart-card-title" id="st-chart-inst">Searches per instance</div>
-        <div style="font-size:10px;color:var(--muted2)" id="st-inst-sub">Gesamt</div>
+        <div style="font-size:10px;color:var(--muted2)" id="st-inst-sub">Total</div>
       </div>
       <div class="chart-body" id="st-inst-bars">
         <div id="st-inst-loading" style="text-align:center;color:var(--muted);padding:20px 0;font-size:12px">Loading...</div>
@@ -822,7 +822,7 @@
     <!-- Searches per Year -->
     <div class="chart-card">
       <div class="chart-card-hd">
-        <div class="chart-card-title" id="st-chart-year">Searches nach Erscheinungsjahr</div>
+        <div class="chart-card-title" id="st-chart-year">Searches by release year</div>
         <div style="font-size:10px;color:var(--muted2)">Top 10</div>
       </div>
       <div class="chart-body" id="st-year-bars">
@@ -833,7 +833,7 @@
     <!-- Result breakdown donut -->
     <div class="chart-card">
       <div class="chart-card-hd">
-        <div class="chart-card-title" id="st-chart-donut">Ergebnisverteilung</div>
+        <div class="chart-card-title" id="st-chart-donut">Result breakdown</div>
       </div>
       <div class="chart-body">
         <div class="donut-wrap">
@@ -1256,6 +1256,15 @@ function renderInstanceCards(instances, instStats) {
     const iconBg = isSonarr ? 'rgba(77,156,255,.12)' : 'rgba(255,107,43,.12)';
     const skipped = (stats.skipped_cooldown||0)+(stats.skipped_daily||0);
     const ver = (stats.version && stats.version!=='?') ? `v${stats.version}` : '—';
+    const sonarrScanShows = stats.scan_shows_total || 0;
+    const sonarrScanEpisodes = stats.scan_episodes_total || 0;
+    const radarrScanMovies = stats.scan_movies_total || 0;
+    const hasScanTotals = isSonarr
+      ? (sonarrScanShows > 0 || sonarrScanEpisodes > 0 || stats.scan_status === 'scanning')
+      : (radarrScanMovies > 0 || stats.scan_status === 'scanning');
+    const scanSummary = isSonarr
+      ? `Shows/Episodes scanned: ${sonarrScanShows} / ${sonarrScanEpisodes}`
+      : `Movies scanned: ${radarrScanMovies}`;
     const chipClass = `status-chip ${st}`;
     const chipLabel = t(st);
     const statRows = [
@@ -1278,6 +1287,7 @@ function renderInstanceCards(instances, instStats) {
               <div>
                 <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:700">${inst.name}</div>
                 <div style="font-size:10px;color:var(--muted)">${ver}</div>
+                ${hasScanTotals ? `<div style="font-size:10px;color:var(--muted2);margin-top:2px">${scanSummary}</div>` : ''}
               </div>
             </div>
             <div class="${chipClass}">${chipLabel}</div>

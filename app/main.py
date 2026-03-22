@@ -266,6 +266,7 @@ def fresh_inst_stats() -> dict:
     return {"missing_found":0,"missing_searched":0,"upgrades_found":0,
             "upgrades_searched":0,"skipped_cooldown":0,"skipped_daily":0,
             "skipped_unreleased":0,"queue_size":0,"scan_status":"idle",
+            "scan_shows_total":0,"scan_episodes_total":0,"scan_movies_total":0,
             "status":"unknown","version":"?"}
 
 def _detect_local_tz() -> str:
@@ -339,6 +340,7 @@ DEFAULT_CONFIG = {
     "hunt_upgrade_delay":   1800,
     "max_searches_per_run":   10,
     "daily_limit":            20,
+    "daily_count_reset_at":   "",
     "cooldown_days":           7,
     "request_timeout":        30,   # seconds for arr API calls
     "jitter_max":            300,   # max random seconds added to interval (0=off)
@@ -490,6 +492,16 @@ _daily_cache_lock = threading.Lock()
 _grab_sync_lock = threading.Lock()
 _last_grab_sync_at = 0.0
 
+def _daily_count_reset_cutoff() -> str:
+    """Optional ISO cutoff after which today's grab events are counted."""
+    raw = str(CONFIG.get("daily_count_reset_at", "") or "").strip()
+    if not raw:
+        return ""
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).replace(tzinfo=None).isoformat()
+    except Exception:
+        return ""
+
 def _today_count(refresh: bool = False) -> int:
     """Return today's dispatched search count from cache, hitting DB only when
     the date has changed or refresh=True is requested."""
@@ -497,7 +509,7 @@ def _today_count(refresh: bool = False) -> int:
     with _daily_cache_lock:
         if refresh or _daily_cache["date"] != today:
             _daily_cache["date"] = today
-            _daily_cache["n"]    = db.count_today()
+            _daily_cache["n"]    = db.count_today(_daily_count_reset_cutoff())
         return _daily_cache["n"]
 
 def _today_count_inc():
@@ -506,7 +518,7 @@ def _today_count_inc():
     with _daily_cache_lock:
         if _daily_cache["date"] != today:
             _daily_cache["date"] = today
-            _daily_cache["n"]    = db.count_today()
+            _daily_cache["n"]    = db.count_today(_daily_count_reset_cutoff())
 
 
 def _normalize_grab_ts(raw) -> str:
@@ -873,14 +885,19 @@ def scan_sonarr_instance(inst: dict):
     client = ArrClient(name, inst["url"], inst["api_key"])
     stats = STATE["inst_stats"].setdefault(iid, fresh_inst_stats())
     stats["scan_status"] = "scanning"
+    stats["scan_shows_total"] = 0
+    stats["scan_episodes_total"] = 0
     log_act(name, msg("scan_start", name=name), "", "info")
 
     series_cache: dict[int, str] = {}
+    series_total = 0
     try:
         for s in client.get("series"):
+            series_total += 1
             sid = s.get("id")
             if sid and s.get("title"):
                 series_cache[int(sid)] = s["title"].strip()
+        stats["scan_shows_total"] = series_total
     except Exception as e:
         logger.warning(f"Series cache for {name}: {e}")
 
@@ -903,6 +920,7 @@ def scan_sonarr_instance(inst: dict):
     if do_upgrades:
         endpoints.append(("wanted/cutoff", "episode_upgrade"))
 
+    scanned_episode_ids: set[int] = set()
     for endpoint, item_type in endpoints:
         seen_ids: set[int] = set()
         page = 1
@@ -919,6 +937,7 @@ def scan_sonarr_instance(inst: dict):
                     if not eid:
                         continue
                     seen_ids.add(eid)
+                    scanned_episode_ids.add(int(eid))
                     series_obj = ep.get("series", {}) or {}
                     series_id  = series_obj.get("id") or ep.get("seriesId")
                     release_dt = (_pick_release_dt(ep, "airDate", "airDateUtc", "firstAired")
@@ -941,13 +960,19 @@ def scan_sonarr_instance(inst: dict):
         except Exception as e:
             log_act(name, msg("scan_error", name=name, err=str(e)[:100]), "", "error")
 
+    stats["scan_episodes_total"] = len(scanned_episode_ids)
     stats["missing_found"]  = db.queue_count(iid, "sonarr", "episode")
     stats["upgrades_found"] = db.queue_count(iid, "sonarr", "episode_upgrade")
     stats["queue_size"]     = stats["missing_found"] + stats["upgrades_found"]
     stats["scan_status"]    = "idle"
     CONFIG.setdefault("queue_last_scan", {})[iid] = datetime.utcnow().isoformat()
     save_config(CONFIG)
-    log_act(name, msg("scan_done", name=name, n=stats["queue_size"]), "", "success")
+    log_act(
+        name,
+        msg("scan_done", name=name, n=stats["queue_size"]),
+        f"shows scanned: {stats['scan_shows_total']} · episodes scanned: {stats['scan_episodes_total']}",
+        "success",
+    )
 
 
 def scan_radarr_instance(inst: dict):
@@ -956,13 +981,16 @@ def scan_radarr_instance(inst: dict):
     client = ArrClient(name, inst["url"], inst["api_key"])
     stats = STATE["inst_stats"].setdefault(iid, fresh_inst_stats())
     stats["scan_status"] = "scanning"
+    stats["scan_movies_total"] = 0
     log_act(name, msg("scan_start", name=name), "", "info")
 
     do_upgrades = CONFIG.get("search_upgrades", True)
 
     missing_ids: set[int] = set()
+    scanned_movies_total = 0
     try:
         for movie in client.get("movie"):
+            scanned_movies_total += 1
             if not movie.get("monitored") or movie.get("hasFile"):
                 continue
             mid = movie.get("id")
@@ -1008,13 +1036,19 @@ def scan_radarr_instance(inst: dict):
         except Exception as e:
             log_act(name, msg("scan_error", name=name, err=str(e)[:100]), "", "error")
 
+    stats["scan_movies_total"] = scanned_movies_total
     stats["missing_found"]  = db.queue_count(iid, "radarr", "movie")
     stats["upgrades_found"] = db.queue_count(iid, "radarr", "movie_upgrade")
     stats["queue_size"]     = stats["missing_found"] + stats["upgrades_found"]
     stats["scan_status"]    = "idle"
     CONFIG.setdefault("queue_last_scan", {})[iid] = datetime.utcnow().isoformat()
     save_config(CONFIG)
-    log_act(name, msg("scan_done", name=name, n=stats["queue_size"]), "", "success")
+    log_act(
+        name,
+        msg("scan_done", name=name, n=stats["queue_size"]),
+        f"movies scanned: {stats['scan_movies_total']}",
+        "success",
+    )
 
 
 def run_scan_if_needed():
@@ -1408,7 +1442,7 @@ def api_instances_ping(inst_id:str):
 # ── Main API ──────────────────────────────────────────────────────────────────
 @app.route("/api/state")
 def api_state():
-    today_n=db.count_today(); limit=CONFIG.get("daily_limit",0)
+    today_n=_today_count(refresh=True); limit=CONFIG.get("daily_limit",0)
     instances_safe=[{k:v for k,v in i.items() if k!="api_key"} for i in CONFIG["instances"]]
     return jsonify({
         "running":STATE["running"],"last_run":STATE["last_run"],
@@ -1532,18 +1566,22 @@ def api_history():
 
 @app.route("/api/history/stats")
 def api_history_stats():
-    return jsonify({"ok":True,"total":db.total_count(),"today":db.count_today(),
+    return jsonify({"ok":True,"total":db.total_count(),"today":_today_count(refresh=True),
                     "by_service":db.stats_by_service(),"by_year":db.year_stats()})
 
 @app.route("/api/history/clear", methods=["POST"])
 def api_history_clear():
+    CONFIG["daily_count_reset_at"] = datetime.utcnow().isoformat()
+    save_config(CONFIG)
     n = db.clear_all()
+    _today_count(refresh=True)
     log_act("System", "DB cleared", f"{n} entries", "warning")
     return jsonify({"ok":True,"removed":n})
 
 @app.route("/api/history/clear/<inst_id>", methods=["POST"])
 def api_history_clear_inst(inst_id:str):
     n = db.clear_service(inst_id)
+    _today_count(refresh=True)
     log_act("System", f"DB cleared ({inst_id})", f"{n} entries", "warning")
     return jsonify({"ok":True,"removed":n})
 
