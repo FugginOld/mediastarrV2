@@ -266,6 +266,7 @@ def make_id() -> str:
 def fresh_inst_stats() -> dict:
     return {"missing_found":0,"missing_searched":0,"upgrades_found":0,
             "upgrades_searched":0,"skipped_cooldown":0,"skipped_daily":0,
+            "skipped_unreleased":0,
             "status":"unknown","version":"?"}
 
 def now_local() -> datetime:
@@ -641,6 +642,15 @@ def _is_older_than_cooldown(release_dt):
     except Exception:
         return False
 
+def _is_released(release_dt):
+    if release_dt is None:
+        # Unknown release date should not be blocked.
+        return True
+    try:
+        return release_dt.date() <= datetime.utcnow().date()
+    except Exception:
+        return True
+
 def should_search(iid:str, item_type:str, item_id:int, release_dt=None):
     if daily_limit_reached(): return False, "daily_limit"
     # Requested behavior: older titles bypass cooldown and can be searched now.
@@ -753,6 +763,9 @@ def hunt_sonarr_instance(inst: dict):
             title = ep_title(ep)
             series_obj = ep.get("series", {}) or {}
             release_dt = _pick_release_dt(ep, "airDate", "airDateUtc", "firstAired", "year") or _pick_release_dt(series_obj, "year")
+            if not _is_released(release_dt):
+                stats["skipped_unreleased"] += 1
+                continue
             ok, reason = should_search(iid, "episode", ep["id"], release_dt=release_dt)
             if not ok:
                 stats[f"skipped_{reason}"] += 1
@@ -831,6 +844,9 @@ def hunt_radarr_instance(inst: dict):
             year  = _year(movie.get("year"))
             if year: title = f"{title} ({year})"
             release_dt = _pick_release_dt(movie, "digitalRelease", "physicalRelease", "inCinemas", "releaseDate", "year")
+            if not _is_released(release_dt):
+                stats["skipped_unreleased"] += 1
+                continue
             ok, reason = should_search(iid, "movie", movie["id"], release_dt=release_dt)
             if not ok:
                 stats[f"skipped_{reason}"] += 1
@@ -910,7 +926,7 @@ def run_cycle():
         _ensure_inst_stats()
         for inst in CONFIG["instances"]:
             s = STATE["inst_stats"].get(inst["id"], fresh_inst_stats())
-            for k in ("missing_searched","upgrades_searched","skipped_cooldown","skipped_daily"):
+            for k in ("missing_searched","upgrades_searched","skipped_cooldown","skipped_daily","skipped_unreleased"):
                 s[k] = 0
         ping_all()
         removed = db.purge_expired(CONFIG.get("cooldown_days",7))
@@ -1244,12 +1260,20 @@ def api_history_stats():
 
 @app.route("/api/history/clear", methods=["POST"])
 def api_history_clear():
-    n=db.clear_all(); log_act("System","DB geleert",f"{n} Einträge","warning")
+    n = db.clear_all()
+    is_de = CONFIG.get("language", "de") == "de"
+    action = "DB geleert" if is_de else "DB cleared"
+    item = f"{n} Einträge" if is_de else f"{n} entries"
+    log_act("System", action, item, "warning")
     return jsonify({"ok":True,"removed":n})
 
 @app.route("/api/history/clear/<inst_id>", methods=["POST"])
 def api_history_clear_inst(inst_id:str):
-    n=db.clear_service(inst_id); log_act("System",f"DB geleert ({inst_id})",f"{n}","warning")
+    n = db.clear_service(inst_id)
+    is_de = CONFIG.get("language", "de") == "de"
+    action = f"DB geleert ({inst_id})" if is_de else f"DB cleared ({inst_id})"
+    item = f"{n} Einträge" if is_de else f"{n} entries"
+    log_act("System", action, item, "warning")
     return jsonify({"ok":True,"removed":n})
 
 # ── Timezone helper ───────────────────────────────────────────────────────────
