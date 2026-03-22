@@ -51,6 +51,9 @@
     .btn-ghost{background:transparent;border-color:var(--border);color:var(--muted2)}
     .btn-test{border-color:var(--blue);color:var(--blue)}
     .btn-test:hover{background:rgba(var(--blue-rgb),.1)}
+    .btn-save{border-color:var(--green);color:var(--green)}
+    .btn-save:hover{background:rgba(var(--green-rgb),.1)}
+    .inst-save-msg{font-size:11px;margin-top:4px;min-height:14px;color:var(--muted2)}
     .btn-danger{border-color:var(--red);color:var(--red)}
     .btn-danger:hover{background:rgba(var(--red-rgb),.08)}
     .label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);display:block;margin-bottom:6px}
@@ -412,6 +415,7 @@ function renderInstances() {
       : 'e.g. Radarr HD';
     const urlPlaceholder = defaultArrUrl(inst.type);
     const testLabel = '🔌 Test';
+    const saveLabel = '💾 Save';
     const removeLabel = '✕';
 
     return `
@@ -448,7 +452,9 @@ function renderInstances() {
             <input class="input" type="password" placeholder="32-character API key" autocomplete="off"
               oninput="updateInst('${inst.id}','api_key',this.value)">
             <button class="btn btn-test" onclick="testInst('${inst.id}')">${testLabel}</button>
+            <button class="btn btn-save" id="save-btn-${inst.id}" onclick="saveInstWizard('${inst.id}')">${saveLabel}</button>
           </div>
+          <div id="save-msg-${inst.id}" class="inst-save-msg"></div>
         </div>
       </div>
     </div>
@@ -490,6 +496,59 @@ async function testInst(id) {
       if (urlEl  && urlEl.value  && !inst.url)  inst.url  = urlEl.value;
     });
   }, 0);
+}
+
+async function saveInstWizard(id) {
+  const inst = instances.find(i => i.id === id);
+  if (!inst) return;
+
+  // Sync current input values into the instances array
+  const nameEl = document.getElementById(`name-${id}`);
+  const urlEl  = document.getElementById(`url-${id}`);
+  const keyEl  = document.querySelector(`#ic-${id} input[type="password"]`);
+  const typeEl = document.getElementById(`type-select-${id}`);
+  if (nameEl) inst.name    = nameEl.value.trim();
+  if (urlEl)  inst.url     = urlEl.value.trim();
+  if (keyEl)  inst.api_key = keyEl.value.trim();
+  if (typeEl) inst.type    = typeEl.value;
+
+  const msgEl = document.getElementById(`save-msg-${id}`);
+  const btnEl = document.getElementById(`save-btn-${id}`);
+
+  const errors = [];
+  if (!inst.name)    errors.push('Name is required');
+  if (!inst.url)     errors.push('URL is required');
+  if (!inst.api_key) errors.push('API Key is required');
+  if (errors.length) {
+    if (msgEl) { msgEl.style.color = 'var(--red)'; msgEl.textContent = '✗ ' + errors[0]; }
+    return;
+  }
+
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Saving...'; }
+  if (msgEl) { msgEl.style.color = 'var(--muted2)'; msgEl.textContent = 'Saving...'; }
+
+  try {
+    const r = await fetch('/api/instances', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: inst.type, name: inst.name, url: inst.url, api_key: inst.api_key })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      // Update the local instance id to match the backend-assigned one
+      inst.saved_id = d.id;
+      if (msgEl) { msgEl.style.color = 'var(--green)'; msgEl.textContent = '✓ Saved to config'; }
+      if (btnEl) { btnEl.textContent = '✓ Saved'; btnEl.style.borderColor = 'var(--green)'; btnEl.style.color = 'var(--green)'; }
+      setTimeout(() => { if (btnEl) { btnEl.disabled = false; btnEl.textContent = '💾 Save'; btnEl.style.borderColor = ''; btnEl.style.color = ''; } }, 3000);
+    } else {
+      const errMsg = (d.errors || [d.error || 'Save failed']).join(', ');
+      if (msgEl) { msgEl.style.color = 'var(--red)'; msgEl.textContent = '✗ ' + errMsg; }
+      if (btnEl) { btnEl.disabled = false; btnEl.textContent = '💾 Save'; }
+    }
+  } catch (e) {
+    if (msgEl) { msgEl.style.color = 'var(--red)'; msgEl.textContent = '✗ Network error'; }
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '💾 Save'; }
+  }
 }
 
 

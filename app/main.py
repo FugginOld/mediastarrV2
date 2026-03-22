@@ -1691,6 +1691,12 @@ def api_queue_scan():
         return jsonify({"ok": False, "error": "Scan already in progress"}), 409
     configured = len(CONFIG.get("instances", []))
     enabled = sum(1 for inst in CONFIG.get("instances", []) if inst.get("enabled") and inst.get("api_key"))
+    online = sum(
+        1
+        for inst in CONFIG.get("instances", [])
+        if inst.get("enabled") and inst.get("api_key")
+        and STATE["inst_stats"].get(inst.get("id"), {}).get("status") == "online"
+    )
     log_act("System", "Initial DB scan requested", f"configured: {configured} · eligible config: {enabled}", "info")
     CONFIG["queue_last_scan"] = {}
     save_config(CONFIG)
@@ -1705,7 +1711,12 @@ def api_queue_scan():
                 and STATE["inst_stats"].get(inst["id"], {}).get("status") == "online"
             ]
             if not eligible:
-                log_act("System", "Initial DB scan skipped", "No online enabled instances available", "warning")
+                log_act(
+                    "System",
+                    "Initial DB scan skipped",
+                    f"No online enabled instances available (configured: {configured}, enabled: {enabled}, online: 0)",
+                    "warning",
+                )
                 return
             scanned = run_scan_if_needed()
             if scanned is None:
@@ -1720,7 +1731,13 @@ def api_queue_scan():
             logger.exception("Initial DB scan failed")
             log_act("System", "Initial DB scan failed", str(e)[:200], "error")
     threading.Thread(target=_bg, daemon=True).start()
-    return jsonify({"ok": True, "message": "Scan started"})
+    return jsonify({
+        "ok": True,
+        "message": "Scan started",
+        "configured": configured,
+        "enabled": enabled,
+        "online": online,
+    })
 
 
 @app.route("/api/queue/stats")

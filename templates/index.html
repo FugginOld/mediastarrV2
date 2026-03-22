@@ -1217,8 +1217,11 @@ function showPage(name) {
   document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     el.className = 'nav-item' + (el.dataset.page === name ? ' active' : '');
   });
-  if (name === 'log' || name === 'history' || name === 'stats') fetchState();
+  if (name === 'settings' || name === 'log' || name === 'history' || name === 'stats') fetchState();
   if (name === 'log') { document.getElementById('logBadge').textContent='0'; document.getElementById('logBadge').className='nav-badge'; }
+  if (name === 'settings' && document.getElementById('tab-instances')?.classList.contains('active')) {
+    renderSettingsInstances();
+  }
   if (name === 'history') loadHistory();
   if (name === 'stats') loadStats();
 }
@@ -1227,7 +1230,24 @@ function showPage(name) {
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.className='tab-btn'+(['general','instances','discord'][i]===name?' active':''));
   document.querySelectorAll('.tab-pane').forEach(p => p.className='tab-pane'+(p.id===`tab-${name}`?' active':''));
-  if (name==='instances') renderSettingsInstances();
+  if (name==='instances') {
+    renderSettingsInstances();
+    refreshSettingsInstances();
+  }
+}
+
+async function refreshSettingsInstances() {
+  try {
+    const r = await fetch('/api/instances');
+    const d = await r.json();
+    if (d && d.ok) {
+      appState.instances = Array.isArray(d.instances) ? d.instances : [];
+      appState.inst_stats = d.stats || appState.inst_stats || {};
+      renderSettingsInstances();
+    }
+  } catch (e) {
+    console.warn('refreshSettingsInstances failed', e);
+  }
 }
 
 // ══ Toggles ══
@@ -1397,6 +1417,12 @@ function updateUI() {
   // Service cards
   renderInstanceCards(s.instances || [], s.inst_stats || {});
 
+  // Keep settings instance list in sync when that tab is visible.
+  if (document.getElementById('page-settings')?.classList.contains('page-visible') &&
+      document.getElementById('tab-instances')?.classList.contains('active')) {
+    renderSettingsInstances();
+  }
+
   // Log
   if (s.activity_log) {
     renderLog(s.activity_log, 'logScroll');
@@ -1526,13 +1552,23 @@ async function triggerInitialQueueScan() {
     });
     const d = await r.json();
     if (d.ok) {
-      alert('Initial queue scan started. Wait for scan completion in the activity log, then click Start to begin hunting.');
+      const configured = Number.isFinite(Number(d.configured)) ? Number(d.configured) : null;
+      const enabled = Number.isFinite(Number(d.enabled)) ? Number(d.enabled) : null;
+      const online = Number.isFinite(Number(d.online)) ? Number(d.online) : null;
+      const diag = configured === null
+        ? ''
+        : `\n\nInstances: configured ${configured}, enabled ${enabled ?? 0}, online ${online ?? 0}`;
+      alert(`Initial queue scan started. Wait for scan completion in the activity log, then click Start to begin hunting.${diag}`);
       fetchState();
       setTimeout(fetchState, 500);
       setTimeout(fetchState, 2000);
       setTimeout(fetchState, 5000);
       if (document.getElementById('page-history')?.classList.contains('page-visible')) {
         loadHistory();
+      }
+      if (document.getElementById('page-settings')?.classList.contains('page-visible') &&
+          document.getElementById('tab-instances')?.classList.contains('active')) {
+        refreshSettingsInstances();
       }
       return true;
     }
@@ -2213,7 +2249,7 @@ syncNewInstUrlHint();
 const _setupDoneFlag = new URLSearchParams(window.location.search).get('setup_done');
 if (_setupDoneFlag === '1') {
   setTimeout(() => {
-    promptInitialQueueScan();
+    triggerInitialQueueScan();
     const cleanUrl = new URL(window.location.href);
     cleanUrl.searchParams.delete('setup_done');
     window.history.replaceState({}, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
