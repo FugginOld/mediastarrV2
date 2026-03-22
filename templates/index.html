@@ -308,14 +308,16 @@
       .sidebar { display: none; }
       .layout { min-height: calc(100vh - 28px); }
       .content { grid-template-columns: 1fr; padding: 14px; }
-      .dash-split { grid-template-columns: 1fr; }
-      .dash-right { border-left: 0; border-top: 1px solid var(--border); }
       .service-cards { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
       .topbar, .controls-bar { padding: 10px 14px; }
       .meta-strip { display: none; }
       #page-history .card { overflow-x: auto; }
       .hist-row { min-width: 500px; }
+    }
+    @media (max-width: 900px) {
+      .dash-split { grid-template-columns: 1fr; }
+      .dash-right { border-left: 0; border-top: 1px solid var(--border); }
     }
     @media (max-width: 680px) {
       body { padding: 8px; }
@@ -1259,11 +1261,9 @@ function renderInstanceCards(instances, instStats) {
     const sonarrScanShows = stats.scan_shows_total || 0;
     const sonarrScanEpisodes = stats.scan_episodes_total || 0;
     const radarrScanMovies = stats.scan_movies_total || 0;
-    const hasScanTotals = isSonarr
-      ? (sonarrScanShows > 0 || sonarrScanEpisodes > 0 || stats.scan_status === 'scanning')
-      : (radarrScanMovies > 0 || stats.scan_status === 'scanning');
+    const scanStatusText = stats.scan_status === 'scanning' ? 'Scanning now' : 'Last scan';
     const scanSummary = isSonarr
-      ? `Shows/Episodes scanned: ${sonarrScanShows} / ${sonarrScanEpisodes}`
+      ? `Shows scanned: ${sonarrScanShows} · Episodes scanned: ${sonarrScanEpisodes}`
       : `Movies scanned: ${radarrScanMovies}`;
     const chipClass = `status-chip ${st}`;
     const chipLabel = t(st);
@@ -1287,7 +1287,7 @@ function renderInstanceCards(instances, instStats) {
               <div>
                 <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:700">${inst.name}</div>
                 <div style="font-size:10px;color:var(--muted)">${ver}</div>
-                ${hasScanTotals ? `<div style="font-size:10px;color:var(--muted2);margin-top:2px">${scanSummary}</div>` : ''}
+                <div style="font-size:10px;color:var(--muted2);margin-top:2px">${scanStatusText}: ${scanSummary}</div>
               </div>
             </div>
             <div class="${chipClass}">${chipLabel}</div>
