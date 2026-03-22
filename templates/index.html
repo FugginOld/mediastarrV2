@@ -387,7 +387,7 @@
         <!-- Daily limit bar -->
         <div class="limit-bar-wrap">
           <div class="limit-bar-header">
-            <span class="limit-bar-label">Tageslimit</span>
+            <span class="limit-bar-label" id="daily-limit-label">Daily limit</span>
             <span class="limit-bar-count" id="daily-counter">0 / —</span>
           </div>
           <div class="limit-bar-track"><div class="limit-bar-fill" id="daily-bar"></div></div>
@@ -403,7 +403,7 @@
             <div class="ov-row"><span class="ov-label" data-i18n="ov_total_lbl">Gesamt Searches</span><span class="ov-val" style="color:var(--accent)" id="ov-total">0</span></div>
           </div>
           <div style="display:flex;gap:6px;margin-top:10px">
-            <button class="btn btn-now" style="flex:1;justify-content:center;font-size:11px" onclick="showPage('history')">📋 Verlauf</button>
+            <button class="btn btn-now" style="flex:1;justify-content:center;font-size:11px" onclick="showPage('history')">📋 History</button>
             <button class="btn btn-stop" style="flex:1;justify-content:center;font-size:11px" onclick="confirmClear('all')">🗑 Reset DB</button>
           </div>
         </div>
@@ -513,16 +513,16 @@
 
         <div class="tab-pane" id="tab-instances">
           <div id="settings-inst-list" style="display:flex;flex-direction:column;gap:9px;margin-bottom:12px">
-            <div style="text-align:center;color:var(--muted2);font-size:12px;padding:12px">Lade...</div>
+            <div style="text-align:center;color:var(--muted2);font-size:12px;padding:12px">Loading...</div>
           </div>
           <!-- Quick-add -->
           <div style="background:var(--surface);border:2px dashed var(--border2);border-radius:9px;padding:12px 14px;margin-top:4px">
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px" data-i18n="lbl_new_instance">Neue Instanz</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-              <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="new-inst-name" type="text" placeholder="z.B. Sonarr 4K"></div>
-              <div class="form-group"><label class="form-label">Typ</label><select class="form-input" id="new-inst-type" onchange="syncNewInstUrlHint()"><option value="sonarr">Sonarr</option><option value="radarr">Radarr</option></select></div>
-              <div class="form-group" style="grid-column:1/-1"><label class="form-label">URL</label><input class="form-input" id="new-inst-url" type="text" placeholder="http://127.0.0.1:8989"></div>
-              <div class="form-group" style="grid-column:1/-1"><label class="form-label">API Key</label><input class="form-input" id="new-inst-key" type="password" placeholder="32-stelliger API Key"></div>
+              <div class="form-group"><label class="form-label" id="new-inst-name-label">Name</label><input class="form-input" id="new-inst-name" type="text" placeholder="e.g. Sonarr 4K"></div>
+              <div class="form-group"><label class="form-label" id="new-inst-type-label">Type</label><select class="form-input" id="new-inst-type" onchange="syncNewInstUrlHint()"><option value="sonarr">Sonarr</option><option value="radarr">Radarr</option></select></div>
+              <div class="form-group" style="grid-column:1/-1"><label class="form-label" id="new-inst-url-label">URL</label><input class="form-input" id="new-inst-url" type="text" placeholder="http://127.0.0.1:8989"></div>
+              <div class="form-group" style="grid-column:1/-1"><label class="form-label" id="new-inst-key-label">API Key</label><input class="form-input" id="new-inst-key" type="password" placeholder="32-character API key"></div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
               <button class="btn btn-start" onclick="addInstFromSettings()" data-i18n="btn_add_instance">+ Add instance</button>
@@ -931,6 +931,18 @@ function applyLang() {
     if (hcd.options[1]) hcd.options[1].text = isDE ? 'Auf Cooldown' : 'On cooldown';
     if (hcd.options[2]) hcd.options[2].text = isDE ? 'Wieder frei' : 'Available';
   }
+
+  const dailyLimitLabel = document.getElementById('daily-limit-label');
+  if (dailyLimitLabel) dailyLimitLabel.textContent = isDE ? 'Tageslimit' : 'Daily limit';
+
+  const newInstNameLabel = document.getElementById('new-inst-name-label');
+  if (newInstNameLabel) newInstNameLabel.textContent = isDE ? 'Name' : 'Name';
+  const newInstTypeLabel = document.getElementById('new-inst-type-label');
+  if (newInstTypeLabel) newInstTypeLabel.textContent = isDE ? 'Typ' : 'Type';
+  const newInstUrlLabel = document.getElementById('new-inst-url-label');
+  if (newInstUrlLabel) newInstUrlLabel.textContent = 'URL';
+  const newInstKeyLabel = document.getElementById('new-inst-key-label');
+  if (newInstKeyLabel) newInstKeyLabel.textContent = 'API Key';
 
   // Stats — all labels, KPI cards, chart titles, subs
   const allStatsIds = {
