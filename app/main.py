@@ -1406,7 +1406,7 @@ def api_setup_complete():
     STOP_EVENT.set()
     STATE["running"] = False
     STATE["next_run"] = None
-    return jsonify({"ok":True, "prompt_scan": True})
+    return jsonify({"ok":True})
 
 @app.route("/api/setup/reset", methods=["POST"])
 def api_setup_reset():

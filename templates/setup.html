@@ -56,6 +56,7 @@
     .inst-save-msg{font-size:11px;margin-top:4px;min-height:14px;color:var(--muted2)}
     .btn-danger{border-color:var(--red);color:var(--red)}
     .btn-danger:hover{background:rgba(var(--red-rgb),.08)}
+      .done-note{margin:16px 0 20px;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,.03);font-size:12px;color:var(--muted)}
     .label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);display:block;margin-bottom:6px}
     .input{width:100%;padding:9px 11px;border-radius:7px}
     .input.valid{border-color:rgba(61,230,139,.5)}
@@ -226,8 +227,9 @@
       <div class="card-body" style="padding:32px 26px">
         <div class="success-icon">✓</div>
         <div id="done-title" style="font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">All set!</div>
-        <div id="done-sub" style="text-align:center;color:var(--muted2);font-size:11px;margin-bottom:22px">mediahunter is starting and will begin searching automatically.</div>
+        <div id="done-sub" style="text-align:center;color:var(--muted2);font-size:11px;margin-bottom:22px">Nothing starts automatically. Review your settings, then run the initial DB scan when you are ready.</div>
         <div class="summary-box" id="summary"></div>
+        <div class="done-note">Next step: open the dashboard, confirm your instances and other settings, then click <strong>Initial DB Scan</strong>. The hunt loop will stay stopped until you press <strong>Start</strong>.</div>
         {% if auth_enabled and default_pw %}
         <div class="pw-warn">
           <span>⚠</span>
@@ -235,7 +237,7 @@
         </div>
         {% endif %}
         <div style="text-align:center">
-          <button class="btn btn-accent" onclick="location.href='/?setup_done=1'" style="padding:11px 26px">🚀 Go to dashboard</button>
+          <button class="btn btn-accent" onclick="location.href='/'" style="padding:11px 26px">🚀 Go to dashboard</button>
         </div>
       </div>
     </div>
@@ -325,7 +327,7 @@ function applyWizardLang() {
   if (el('p2-back'))        el('p2-back').textContent = '← Back';
   if (el('finish-btn'))     el('finish-btn').textContent = '✓ Finish setup';
   if (el('done-title'))     el('done-title').textContent = 'All set!';
-  if (el('done-sub'))       el('done-sub').textContent   = 'mediahunter is starting and will begin searching automatically.';
+  if (el('done-sub'))       el('done-sub').textContent   = 'Nothing starts automatically. Review your settings, then run the initial DB scan when you are ready.';
   const goBtnP3 = document.querySelector('#pane-3 .btn-accent');
   if (goBtnP3) goBtnP3.textContent = '🚀 Go to dashboard';
   // Pane 3 (Done)
@@ -417,6 +419,7 @@ function renderInstances() {
     const displayName = escHtml(inst.name || `Instance ${idx+1}`);
     const safeName = escHtml(inst.name || '');
     const safeUrl = escHtml(inst.url || '');
+    const safeKey = escHtml(inst.api_key || '');
     const badgeLabel = inst.type === 'sonarr' ? '📺 Sonarr' : '🎬 Radarr';
     const statusText = inst.tested ? `✓ v${escHtml(inst.version || '')}` : '○ not tested';
     const namePlaceholder = inst.type === 'sonarr'
@@ -459,7 +462,7 @@ function renderInstances() {
         <div class="field" style="grid-column:1/-1">
           <label class="label">API Key <span style="color:var(--muted)">· Settings → General → Security</span></label>
           <div class="field-row">
-            <input class="input" type="password" id="key-${inst.id}" placeholder="32-character API key" autocomplete="off"
+            <input class="input" type="password" id="key-${inst.id}" value="${safeKey}" placeholder="32-character API key" autocomplete="off"
               oninput="updateInst('${inst.id}','api_key',this.value)">
             <button class="btn btn-test" onclick="testInst('${inst.id}')">${testLabel}</button>
             <button class="btn btn-save" id="save-btn-${inst.id}" onclick="saveInstWizard('${inst.id}')">${saveLabel}</button>
@@ -541,16 +544,18 @@ async function saveInstWizard(id) {
   if (msgEl) { msgEl.style.color = 'var(--muted2)'; msgEl.textContent = 'Saving...'; }
 
   try {
-    const r = await fetch('/api/instances', {
-      method: 'POST',
+    const persistedId = inst.saved_id || (!String(inst.id).startsWith('tmp_') ? inst.id : '');
+    const method = persistedId ? 'PATCH' : 'POST';
+    const endpoint = persistedId ? `/api/instances/${persistedId}` : '/api/instances';
+    const r = await fetch(endpoint, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: inst.type, name: inst.name, url: inst.url, api_key: inst.api_key })
     });
     const d = await r.json();
     if (d.ok) {
-      // Update the local instance id to match the backend-assigned one
-      inst.saved_id = d.id;
-      if (msgEl) { msgEl.style.color = 'var(--green)'; msgEl.textContent = '✓ Saved to config'; }
+      if (!persistedId && d.id) inst.saved_id = d.id;
+      if (msgEl) { msgEl.style.color = 'var(--green)'; msgEl.textContent = '✓ Saved to settings'; }
       if (btnEl) { btnEl.textContent = '✓ Saved'; btnEl.style.borderColor = 'var(--green)'; btnEl.style.color = 'var(--green)'; }
       setTimeout(() => { if (btnEl) { btnEl.disabled = false; btnEl.textContent = '💾 Save'; btnEl.style.borderColor = ''; btnEl.style.color = ''; } }, 3000);
     } else {
@@ -664,7 +669,7 @@ async function finishSetup() {
     language: 'en',
     theme: currentTheme,
     instances: instances.map(inst => ({
-      id: inst.id, type: inst.type, name: inst.name.trim(),
+      id: inst.saved_id || inst.id, type: inst.type, name: inst.name.trim(),
       url: inst.url.trim(), api_key: inst.api_key.trim(), enabled: true
     })),
     discord: dcUrl ? {

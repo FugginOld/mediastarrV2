@@ -160,6 +160,15 @@
     .btn-now:hover { background: rgba(var(--blue-rgb),0.1); }
     .meta-strip { margin-left: auto; font-size: 11px; color: var(--muted2); display: flex; gap: 14px; font-family: 'JetBrains Mono', monospace; }
     .meta-strip b { color: var(--text); }
+    .action-banner { margin: 10px 16px 0; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); display: none; align-items: center; justify-content: space-between; gap: 12px; }
+    .action-banner.visible { display: flex; }
+    .action-banner.success { border-color: rgba(61,230,139,.35); background: rgba(61,230,139,.08); }
+    .action-banner.error { border-color: rgba(255,77,77,.35); background: rgba(255,77,77,.08); }
+    .action-banner.warning { border-color: rgba(255,184,77,.35); background: rgba(255,184,77,.08); }
+    .action-banner.info { border-color: rgba(var(--blue-rgb),.35); background: rgba(var(--blue-rgb),.08); }
+    .action-banner-copy { font-size: 12px; color: var(--text); }
+    .action-banner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-inline-muted { border-color: var(--border); color: var(--muted2); }
 
     /* ══════════ CONTENT GRID ══════════ */
     .content { flex: 1; padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -602,6 +611,10 @@
         <span id="lbl-next">Next</span> <b id="nextRun">—</b> &nbsp;·&nbsp;
         <span id="lbl-last">Last</span> <b id="lastRun">—</b>
       </div>
+    </div>
+    <div id="action-banner" class="action-banner">
+      <div id="action-banner-copy" class="action-banner-copy"></div>
+      <div id="action-banner-actions" class="action-banner-actions"></div>
     </div>
 
     <!-- ══ DASHBOARD ══ -->
@@ -1046,6 +1059,8 @@ let appState = {}, historyData = [], toggleStates = {dry:false,sonarr:true,radar
 let _syncingFromServer = false;
 let dcStates = {enabled:false,missing:true,upgrade:true,cooldown:true,limit:true,offline:true};
 let currentLang = 'en', currentTheme = '{{ theme|default("system") }}', lastLogCount = 0;
+let pendingActionConfirm = null;
+let actionBannerTimer = null;
 
 // ══ i18n ══
 const T = {
@@ -1533,6 +1548,56 @@ function clearLog() {
   });
 }
 
+function clearActionBanner() {
+  const banner = document.getElementById('action-banner');
+  const copy = document.getElementById('action-banner-copy');
+  const actions = document.getElementById('action-banner-actions');
+  if (!banner || !copy || !actions) return;
+  banner.className = 'action-banner';
+  copy.textContent = '';
+  actions.innerHTML = '';
+  pendingActionConfirm = null;
+  if (actionBannerTimer) {
+    clearTimeout(actionBannerTimer);
+    actionBannerTimer = null;
+  }
+}
+
+function showActionMessage(message, tone = 'info', timeout = 5000) {
+  const banner = document.getElementById('action-banner');
+  const copy = document.getElementById('action-banner-copy');
+  const actions = document.getElementById('action-banner-actions');
+  if (!banner || !copy || !actions) return;
+  clearActionBanner();
+  banner.className = `action-banner visible ${tone}`;
+  copy.textContent = message;
+  actions.innerHTML = '<button class="btn btn-inline-muted" onclick="clearActionBanner()">Dismiss</button>';
+  if (timeout > 0) {
+    actionBannerTimer = setTimeout(() => clearActionBanner(), timeout);
+  }
+}
+
+function showActionConfirm(message, onConfirm) {
+  const banner = document.getElementById('action-banner');
+  const copy = document.getElementById('action-banner-copy');
+  const actions = document.getElementById('action-banner-actions');
+  if (!banner || !copy || !actions) return;
+  clearActionBanner();
+  pendingActionConfirm = onConfirm;
+  banner.className = 'action-banner visible warning';
+  copy.textContent = message;
+  actions.innerHTML = [
+    '<button class="btn btn-stop" onclick="runPendingActionConfirm()">Confirm</button>',
+    '<button class="btn btn-inline-muted" onclick="clearActionBanner()">Cancel</button>'
+  ].join('');
+}
+
+function runPendingActionConfirm() {
+  const action = pendingActionConfirm;
+  clearActionBanner();
+  if (typeof action === 'function') action();
+}
+
 // ══ API ══
 async function control(action) {
   await fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});
@@ -1556,9 +1621,9 @@ async function triggerInitialQueueScan() {
       const enabled = Number.isFinite(Number(d.enabled)) ? Number(d.enabled) : null;
       const online = Number.isFinite(Number(d.online)) ? Number(d.online) : null;
       const diag = configured === null
-        ? ''
-        : `\n\nInstances: configured ${configured}, enabled ${enabled ?? 0}, online ${online ?? 0}`;
-      alert(`Initial queue scan started. Wait for scan completion in the activity log, then click Start to begin hunting.${diag}`);
+        ? 'Initial queue scan started. Watch the activity log for completion, then press Start when you want hunting to begin.'
+        : `Initial queue scan started. Instances: configured ${configured}, enabled ${enabled ?? 0}, online ${online ?? 0}. Watch the activity log for completion, then press Start when you want hunting to begin.`;
+      showActionMessage(diag, 'success', 9000);
       fetchState();
       setTimeout(fetchState, 500);
       setTimeout(fetchState, 2000);
@@ -1572,11 +1637,11 @@ async function triggerInitialQueueScan() {
       }
       return true;
     }
-    alert(`Scan could not be started: ${d.error || 'Unknown error'}`);
+    showActionMessage(`Initial queue scan could not be started: ${d.error || 'Unknown error'}`, 'error', 9000);
     return false;
   } catch (err) {
     const msg = err && typeof err === 'object' && 'message' in err ? err.message : String(err || 'Unknown error');
-    alert(`Scan request failed: ${msg}`);
+    showActionMessage(`Initial queue scan request failed: ${msg}`, 'error', 9000);
     return false;
   }
 }
@@ -1687,17 +1752,20 @@ async function confirmClear(target) {
     ? 'entire history'
     : `${target} history`;
   const msg = `Delete ${label}? All items can be searched again immediately.`;
-  if (!confirm(msg)) return;
-  const url = target==='all' ? '/api/history/clear' : `/api/history/clear/${target}`;
-  await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-  await loadHistory();
-  fetchState();
+  showActionConfirm(msg, async () => {
+    const url = target==='all' ? '/api/history/clear' : `/api/history/clear/${target}`;
+    await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    await loadHistory();
+    fetchState();
+    showActionMessage(`Cleared ${label}.`, 'success');
+  });
 }
 
 async function resetSetup() {
-  if (!confirm('Really reset setup? The hunt will be stopped.')) return;
-  await fetch('/api/setup/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-  window.location.href='/setup';
+  showActionConfirm('Reset setup? The hunt stays stopped until you start it again.', async () => {
+    await fetch('/api/setup/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    window.location.href='/setup';
+  });
 }
 
 function renderSettingsInstances() {
@@ -1864,11 +1932,18 @@ async function toggleInst(id, enabled) {
 async function deleteInst(id) {
   const inst = appState.instances?.find(i=>i.id===id);
   const name = inst?.name || 'this instance';
-  const msg = `Delete "${name}"?\nThe search history for this instance will be kept.`;
-  if (!confirm(msg)) return;
-  const r = await fetch(`/api/instances/${id}`, {method:'DELETE'});
-  const d = await r.json();
-  if (d.ok) { fetchState(); setTimeout(renderSettingsInstances, 300); }
+  const msg = `Delete "${name}"? The search history for this instance will be kept.`;
+  showActionConfirm(msg, async () => {
+    const r = await fetch(`/api/instances/${id}`, {method:'DELETE'});
+    const d = await r.json();
+    if (d.ok) {
+      fetchState();
+      setTimeout(renderSettingsInstances, 300);
+      showActionMessage(`Deleted "${name}".`, 'success');
+    } else {
+      showActionMessage(`Could not delete "${name}": ${d.error || 'Unknown error'}`, 'error', 9000);
+    }
+  });
 }
 
 function toggleCfg2(key) {
@@ -2245,16 +2320,6 @@ async function statsNow() {
 // Init
 fetchState();
 syncNewInstUrlHint();
-
-const _setupDoneFlag = new URLSearchParams(window.location.search).get('setup_done');
-if (_setupDoneFlag === '1') {
-  setTimeout(() => {
-    triggerInitialQueueScan();
-    const cleanUrl = new URL(window.location.href);
-    cleanUrl.searchParams.delete('setup_done');
-    window.history.replaceState({}, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
-  }, 250);
-}
 
 setInterval(fetchState, 4000);
 setInterval(() => { if (document.getElementById('page-stats')?.classList.contains('page-visible')) loadStats(); }, 30000);
