@@ -341,7 +341,7 @@ DEFAULT_CONFIG = {
     "request_timeout":        30,   # seconds for arr API calls
     "jitter_max":            300,   # max random seconds added to interval (0=off)
     "dry_run":    False,
-    "auto_start": True,
+    "auto_start": False,
     # Sonarr search granularity: "episode" | "season" | "series"
     "sonarr_search_mode": "season",   # season is safer default (fewer API calls)
     # Whether to search for upgrades at all
@@ -436,8 +436,22 @@ def _bootstrap_arr_url(service: str) -> str:
 CONFIG = load_config()
 
 # English-only mode: normalize any existing config to English.
+_cfg_migrated = False
 if CONFIG.get("language") != "en":
     CONFIG["language"] = "en"
+    _cfg_migrated = True
+
+# Migrate legacy default timezone from UTC to detected host timezone.
+if (not CONFIG.get("timezone") or CONFIG.get("timezone") == "UTC") and OS_TIMEZONE != "UTC":
+    CONFIG["timezone"] = OS_TIMEZONE
+    _cfg_migrated = True
+
+# Prevent immediate background hunt on fresh setups unless explicitly enabled later.
+if CONFIG.get("setup_complete") and CONFIG.get("auto_start") and not CONFIG.get("queue_last_scan"):
+    CONFIG["auto_start"] = False
+    _cfg_migrated = True
+
+if _cfg_migrated:
     save_config(CONFIG)
 
 # Env-var bootstrap
@@ -469,6 +483,8 @@ CYCLE_LOCK  = threading.Lock()
 # Avoids repeated COUNT(*) queries on every search dispatch within a cycle.
 _daily_cache: dict = {"date": "", "n": 0}
 _daily_cache_lock = threading.Lock()
+_grab_sync_lock = threading.Lock()
+_last_grab_sync_at = 0.0
 
 def _today_count(refresh: bool = False) -> int:
     """Return today's dispatched search count from cache, hitting DB only when
@@ -481,14 +497,83 @@ def _today_count(refresh: bool = False) -> int:
         return _daily_cache["n"]
 
 def _today_count_inc():
-    """Increment the in-memory daily count after a successful dispatch."""
+    """Legacy helper kept for compatibility; confirmed counts are DB-derived."""
     today = datetime.utcnow().strftime("%Y-%m-%d")
     with _daily_cache_lock:
         if _daily_cache["date"] != today:
             _daily_cache["date"] = today
             _daily_cache["n"]    = db.count_today()
-        else:
-            _daily_cache["n"] += 1
+
+
+def _normalize_grab_ts(raw) -> str:
+    """Return ISO timestamp for Arr history event time; fallback to now."""
+    val = str(raw or "").strip()
+    if not val:
+        return datetime.utcnow().isoformat()
+    try:
+        return datetime.fromisoformat(val.replace("Z", "+00:00")).replace(tzinfo=None).isoformat()
+    except Exception:
+        return datetime.utcnow().isoformat()
+
+
+def sync_grab_events(force: bool = False):
+    """Ingest confirmed Arr 'grabbed' history events for daily-limit counting."""
+    global _last_grab_sync_at
+    now_ts = time.time()
+    if not force and now_ts - _last_grab_sync_at < 20:
+        return
+    if not _grab_sync_lock.acquire(blocking=False):
+        return
+    try:
+        _last_grab_sync_at = now_ts
+        for inst in CONFIG.get("instances", []):
+            if not inst.get("enabled") or not inst.get("api_key"):
+                continue
+            if STATE["inst_stats"].get(inst["id"], {}).get("status") != "online":
+                continue
+            try:
+                client = ArrClient(inst["name"], inst["url"], inst["api_key"])
+                data = client.get("history", params={"page": 1, "pageSize": 200, "sortKey": "date", "sortDir": "descending"})
+                records = data.get("records", []) if isinstance(data, dict) else []
+                for rec in records:
+                    if str(rec.get("eventType", "")).lower() != "grabbed":
+                        continue
+                    event_id = str(rec.get("id", "")).strip()
+                    if not event_id:
+                        continue
+                    if inst.get("type") == "sonarr":
+                        item_id = int(rec.get("episodeId") or 0)
+                        if not item_id:
+                            continue
+                        item_type = "episode"
+                        series_title = (rec.get("series") or {}).get("title") or rec.get("sourceTitle") or "Sonarr item"
+                        title = safe_str(series_title, 120)
+                    else:
+                        movie = rec.get("movie") or {}
+                        item_id = int(rec.get("movieId") or movie.get("id") or 0)
+                        if not item_id:
+                            continue
+                        item_type = "movie"
+                        movie_title = movie.get("title") or rec.get("sourceTitle") or "Radarr item"
+                        title = safe_str(movie_title, 120)
+
+                    grabbed_at = _normalize_grab_ts(rec.get("date"))
+                    inserted = db.add_grab_event(
+                        service=inst["id"],
+                        arr_type=inst.get("type", "sonarr"),
+                        item_type=item_type,
+                        item_id=item_id,
+                        title=title,
+                        grabbed_at=grabbed_at,
+                        event_id=event_id,
+                    )
+                    if inserted:
+                        db.upsert_search(inst["id"], item_type, item_id, title, "downloaded")
+            except Exception as e:
+                logger.debug(f"grab sync failed for {inst.get('name', inst.get('id'))}: {e}")
+        _today_count(refresh=True)
+    finally:
+        _grab_sync_lock.release()
 
 def _ensure_inst_stats():
     for inst in CONFIG["instances"]:
@@ -669,6 +754,7 @@ def jittered_delay(base_sec: int) -> tuple[int, int]:
 
 # ─── Hunt helpers ─────────────────────────────────────────────────────────────
 def daily_limit_reached() -> bool:
+    sync_grab_events(force=False)
     limit = CONFIG.get("daily_limit", 0)
     return limit > 0 and _today_count() >= limit
 
@@ -745,7 +831,6 @@ def do_search(client: ArrClient, iid: str, item_type: str, item_id: int,
             return "error"
         result = "dispatched"
         db.upsert_search(iid, item_type, item_id, title, "dispatched", changed, year)
-        _today_count_inc()
 
     # Discord notification
     inst = next((i for i in CONFIG["instances"] if i["id"] == iid), {})
@@ -1098,6 +1183,7 @@ def run_cycle():
             for k in ("missing_searched","upgrades_searched","skipped_cooldown","skipped_daily","skipped_unreleased"):
                 s[k] = 0
         ping_all()
+        sync_grab_events(force=True)
         run_scan_if_needed()  # populate/refresh queue for overdue instances
         removed = db.purge_expired(CONFIG.get("cooldown_days",7))
         if removed:
@@ -1223,6 +1309,7 @@ def api_setup_complete():
     if theme in ALLOWED_THEMES:
         CONFIG["theme"] = theme
     CONFIG["setup_complete"] = True
+    CONFIG["auto_start"] = False
 
     # Optional Discord config from wizard
     dc_in = d.get("discord")
@@ -1241,11 +1328,10 @@ def api_setup_complete():
             dc["rate_limit_cooldown"] = clamp_int(dc_in.get("rate_limit_cooldown", 5), 1, 300, 5)
 
     save_config(CONFIG); _ensure_inst_stats()
-    global hunt_thread
-    if CONFIG.get("auto_start") and not STATE["running"]:
-        STOP_EVENT.clear()
-        hunt_thread = threading.Thread(target=hunt_loop, daemon=True); hunt_thread.start()
-    return jsonify({"ok":True})
+    STOP_EVENT.set()
+    STATE["running"] = False
+    STATE["next_run"] = None
+    return jsonify({"ok":True, "prompt_scan": True})
 
 @app.route("/api/setup/reset", methods=["POST"])
 def api_setup_reset():
@@ -1327,7 +1413,7 @@ def api_state():
         "daily_limit":limit,"daily_remaining":max(0,limit-today_n) if limit>0 else None,
         "inst_stats":STATE["inst_stats"],"instances":instances_safe,
         "server_time": fmt_time(now_local()),
-        "server_tz":   CONFIG.get("timezone","UTC"),
+        "server_tz":   CONFIG.get("timezone", OS_TIMEZONE),
         "activity_log":list(STATE["activity_log"])[:60],
         "scan_running":    STATE.get("scan_running", False),
         "queue_last_scan": CONFIG.get("queue_last_scan", {}),
@@ -1345,7 +1431,7 @@ def api_state():
             "dry_run":              CONFIG["dry_run"],
             "language":             CONFIG["language"],
             "theme":                normalize_theme_name(CONFIG.get("theme","system")),
-            "timezone":             CONFIG.get("timezone","UTC"),
+            "timezone":             CONFIG.get("timezone", OS_TIMEZONE),
             "auto_start":           CONFIG["auto_start"],
             "instance_count":       len(CONFIG["instances"]),
             "discord": {
@@ -1394,7 +1480,7 @@ def api_config():
     theme = normalize_theme_name(safe_str(d.get("theme", CONFIG.get("theme","system")), 32))
     if theme in ALLOWED_THEMES: CONFIG["theme"] = theme
     CONFIG["language"] = "en"
-    tz = safe_str(d.get("timezone", CONFIG.get("timezone","UTC")), 50)
+    tz = safe_str(d.get("timezone", CONFIG.get("timezone", OS_TIMEZONE)), 50)
     try: zoneinfo.ZoneInfo(tz); CONFIG["timezone"] = tz
     except Exception: pass  # keep current if invalid
 
@@ -1563,7 +1649,7 @@ def start_runtime():
         logger.warning("MEDIAHUNTER_PASSWORD is set to the insecure default 'change-me' — update it before exposing this instance to a network.")
     if CONFIG.get("setup_complete"):
         _ensure_inst_stats(); ping_all()
-        if CONFIG.get("auto_start", True):
+        if CONFIG.get("auto_start", False):
             hunt_thread = threading.Thread(target=hunt_loop, daemon=True); hunt_thread.start()
             log_act("System", msg("auto_start"), "", "info")
     else:

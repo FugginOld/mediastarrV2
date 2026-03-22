@@ -270,11 +270,9 @@
   <aside class="sidebar">
     <div class="logo-wrap">
       <div class="logo">
-        <svg class="logo-mark" viewBox="0 0 36 36" fill="none">
-          <div class="logo-mark">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="MediaHunter logo">
-          </div>
-        </svg>
+        <div class="logo-mark">
+          <img src="{{ url_for('static', filename='logo.png') }}" alt="MediaHunter logo">
+        </div>
         <div>
           <div class="logo-name">Media<span>Hunter</span></div>
           <div class="logo-sub">Hunt Engine <span style="color:var(--accent);font-weight:700">v1.0 Beta</span></div>
@@ -357,6 +355,7 @@
       <button class="btn btn-start" onclick="control('start')">▶ <span id="lbl-start">Start</span></button>
       <button class="btn btn-stop"  onclick="control('stop')">■ <span id="lbl-stop">Stop</span></button>
       <button class="btn btn-now"   onclick="control('run_now')">⚡ <span id="lbl-now">Run Now</span></button>
+      <button class="btn" onclick="promptInitialQueueScan()">🗂 Initial DB Scan</button>
       <div class="meta-strip">
         <span id="lbl-cycle">Cycle</span> <b id="cycleCount">0</b> &nbsp;·&nbsp;
         <span id="lbl-total">Total</span> <b id="totalSearches">0</b> &nbsp;·&nbsp;
@@ -1106,7 +1105,7 @@ function updateUI() {
     const modeEl = el('cfg-sonarr-mode');
     if (modeEl && document.activeElement !== modeEl) modeEl.value = c.sonarr_search_mode || 'season';
     const tzEl = el('cfg-timezone');
-    if (tzEl && document.activeElement !== tzEl) tzEl.value = c.timezone || 'UTC';
+    if (tzEl && document.activeElement !== tzEl) tzEl.value = c.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
     toggleStates2.upgrades = c.search_upgrades !== false;
     const togUp = el('tog-upgrades'), labUp = el('lab-upgrades');
     if (togUp) togUp.className = 'toggle' + (toggleStates2.upgrades ? ' on' : '');
@@ -1205,6 +1204,27 @@ async function control(action) {
   setTimeout(fetchState, 400);
 }
 
+async function triggerInitialQueueScan() {
+  const r = await fetch('/api/queue/scan', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: '{}'
+  });
+  const d = await r.json();
+  if (d.ok) {
+    alert('Initial queue scan started. Wait for scan completion in the activity log, then click Start to begin hunting.');
+    fetchState();
+    return true;
+  }
+  alert(`Scan could not be started: ${d.error || 'Unknown error'}`);
+  return false;
+}
+
+async function promptInitialQueueScan() {
+  const yes = confirm('Scan Sonarr/Radarr now to build the initial MediaHunter queue database?\n\nChoose Yes to scan now. Choose No to skip for now and run it later from this button.');
+  if (yes) await triggerInitialQueueScan();
+}
+
 async function saveConfig() {
   const el = id => document.getElementById(id);
   const getInt = (id, fb) => { const v = parseInt(el(id)?.value); return isNaN(v) ? fb : v; };
@@ -1218,7 +1238,7 @@ async function saveConfig() {
     request_timeout:      getInt('cfg-timeout', 30),
     sonarr_search_mode:   el('cfg-sonarr-mode')?.value || 'season',
     search_upgrades:      toggleStates2.upgrades,
-    timezone:             el('cfg-timezone')?.value || 'UTC',
+    timezone:             el('cfg-timezone')?.value || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     dry_run:              toggleStates.dry,
     theme:                currentTheme,
     language:             currentLang,
@@ -1848,6 +1868,17 @@ async function statsNow() {
 // Init
 fetchState();
 syncNewInstUrlHint();
+
+const _setupDoneFlag = new URLSearchParams(window.location.search).get('setup_done');
+if (_setupDoneFlag === '1') {
+  setTimeout(() => {
+    promptInitialQueueScan();
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete('setup_done');
+    window.history.replaceState({}, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+  }, 250);
+}
+
 setInterval(fetchState, 4000);
 setInterval(() => { if (document.getElementById('page-stats')?.style.display!=='none') loadStats(); }, 30000);
 </script>

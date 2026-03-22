@@ -112,6 +112,27 @@ def _migrate():
             conn.execute(stmt)
         conn.commit()
 
+        # Step 5: grab_events – confirmed downloader requests from Arr history.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS grab_events (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                service     TEXT    NOT NULL,
+                arr_type    TEXT    NOT NULL,
+                item_type   TEXT    NOT NULL,
+                item_id     INTEGER NOT NULL,
+                title       TEXT    NOT NULL DEFAULT '',
+                grabbed_at  TEXT    NOT NULL,
+                event_id    TEXT    NOT NULL,
+                UNIQUE(service, event_id)
+            )
+        """)
+        for stmt in [
+            "CREATE INDEX IF NOT EXISTS idx_grab_service_time ON grab_events(service, grabbed_at)",
+            "CREATE INDEX IF NOT EXISTS idx_grab_time         ON grab_events(grabbed_at)",
+        ]:
+            conn.execute(stmt)
+        conn.commit()
+
 
 # ─── Write ────────────────────────────────────────────────────────────────────
 
@@ -184,13 +205,13 @@ def get_history(limit: int = 300, service: str = "",
 
 
 def count_today() -> int:
-    """Number of dispatched/downloaded searches today (UTC date)."""
+    """Number of confirmed downloader requests today (UTC date)."""
     conn = _get_conn()
     today = datetime.utcnow().strftime("%Y-%m-%d")
     with _lock:
         row = conn.execute("""
-            SELECT COUNT(*) AS n FROM search_history
-            WHERE searched_at LIKE ? AND result IN ('dispatched', 'downloaded')
+            SELECT COUNT(*) AS n FROM grab_events
+            WHERE grabbed_at LIKE ?
         """, (today + "%",)).fetchone()
     return row["n"] if row else 0
 
@@ -359,6 +380,20 @@ def queue_clear(service: str = "") -> int:
             cur = conn.execute("DELETE FROM media_queue")
         conn.commit()
     return cur.rowcount
+
+
+def add_grab_event(service: str, arr_type: str, item_type: str, item_id: int,
+                   title: str, grabbed_at: str, event_id: str) -> bool:
+    """Insert a confirmed grab event once. Returns True when inserted."""
+    conn = _get_conn()
+    with _lock:
+        cur = conn.execute("""
+            INSERT OR IGNORE INTO grab_events
+                (service, arr_type, item_type, item_id, title, grabbed_at, event_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (service, arr_type, item_type, item_id, title, grabbed_at, event_id))
+        conn.commit()
+        return cur.rowcount > 0
 
 
 

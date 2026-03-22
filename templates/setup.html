@@ -79,15 +79,6 @@
     .add-btn{width:100%;padding:10px;border-radius:9px;border:2px dashed var(--border2);background:transparent;color:var(--muted2);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;transition:all .15s;text-align:center}
     .add-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(var(--accent-rgb),.05)}
 
-    /* lang picker */
-    .lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .lang-card{padding:14px;background:var(--surface);border:2px solid var(--border);border-radius:8px;cursor:pointer;text-align:center;transition:all .15s}
-    .lang-card:hover{border-color:var(--border2)}
-    .lang-card.selected{border-color:var(--accent);background:rgba(var(--accent-rgb),.07)}
-    .lang-flag{font-size:22px;margin-bottom:5px}
-    .lang-name{font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:600}
-    .lang-sub{font-size:10px;color:var(--muted2)}
-
     /* success */
     .success-icon{width:60px;height:60px;border-radius:50%;background:rgba(var(--green-rgb),.1);border:1px solid rgba(var(--green-rgb),.3);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 18px;animation:pop .4s cubic-bezier(.175,.885,.32,1.275)}
     @keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
@@ -106,7 +97,6 @@
       .card-body{padding:14px 16px}
       .card-footer{padding:12px 16px;flex-wrap:wrap;gap:6px}
       .inst-body{grid-template-columns:1fr}
-      .lang-grid{grid-template-columns:1fr}
       .step-lbl{font-size:9px}
       .logo-name{font-size:22px}
     }
@@ -136,38 +126,13 @@
 
   <!-- Steps -->
   <div class="steps" id="steps">
-    <div class="step active" id="s1"><div class="step-dot">1</div><span class="step-lbl">Language</span></div>
-    <div class="step"        id="s2"><div class="step-dot">2</div><span class="step-lbl">Instances</span></div>
-    <div class="step"        id="s3"><div class="step-dot">3</div><span class="step-lbl">Discord</span></div>
-    <div class="step"        id="s4"><div class="step-dot">4</div><span class="step-lbl">Done</span></div>
+    <div class="step active" id="s1"><div class="step-dot">1</div><span class="step-lbl">Instances</span></div>
+    <div class="step"        id="s2"><div class="step-dot">2</div><span class="step-lbl">Discord</span></div>
+    <div class="step"        id="s3"><div class="step-dot">3</div><span class="step-lbl">Done</span></div>
   </div>
 
-  <!-- Pane 1: Language -->
+  <!-- Pane 1: Instances -->
   <div id="pane-1">
-    <div class="card">
-      <div class="card-top">
-        <div class="top-accent" style="background:linear-gradient(90deg,var(--accent),var(--blue))"></div>
-        <div class="card-title" id="p1-title">Choose language</div>
-        <div class="card-sub" id="p1-sub">Can be changed any time in the dashboard.</div>
-      </div>
-      <div class="card-body">
-        <div class="lang-grid" style="grid-template-columns:1fr">
-          <div class="lang-card selected" id="lc-en">
-            <div class="lang-flag">🇬🇧</div>
-            <div class="lang-name">English</div>
-            <div class="lang-sub">Only available language</div>
-          </div>
-        </div>
-      </div>
-      <div class="card-footer">
-        <div style="font-size:11px;color:var(--muted)">Step 1 of 4</div>
-        <button class="btn btn-accent" onclick="goTo(2)">Next →</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Pane 2: Instances -->
-  <div id="pane-2" style="display:none">
     <div class="card">
       <div class="card-top">
         <div class="top-accent" style="background:linear-gradient(90deg,var(--blue),var(--accent))"></div>
@@ -183,14 +148,14 @@
         <div id="setup-errors" style="margin-top:12px;font-size:11px;color:var(--red);display:none"></div>
       </div>
       <div class="card-footer">
-        <button class="btn btn-ghost" onclick="goTo(1)" id="p2-back">← Back</button>
-        <button class="btn btn-accent" onclick="goToDiscord()" id="p2-next">Next →</button>
+        <div></div>
+        <button class="btn btn-accent" onclick="goToDiscord()" id="p1-next">Next →</button>
       </div>
     </div>
   </div>
 
-  <!-- Pane 3: Discord (optional) -->
-  <div id="pane-3" style="display:none">
+  <!-- Pane 2: Discord (optional) -->
+  <div id="pane-2" style="display:none">
     <div class="card">
       <div class="card-top">
         <div class="top-accent" style="background:linear-gradient(90deg,#5865f2,#7289da)"></div>
@@ -204,7 +169,7 @@
         <div class="field">
           <label class="label" id="dc-wiz-lbl-url">Webhook URL</label>
           <input class="input" id="wiz-dc-url" type="password" placeholder="https://discord.com/api/webhooks/..." autocomplete="off"
-            oninput="discordUrl=this.value;document.getElementById('p3-test').style.display=this.value.trim()?'':'none'">
+            oninput="discordUrl=this.value;document.getElementById('p2-test').style.display=this.value.trim()?'':'none'">
           <div style="font-size:10px;color:var(--muted2);margin-top:4px" id="dc-wiz-hint">Leave blank to skip Discord for now.</div>
         </div>
         <div id="dc-wiz-events" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
@@ -235,17 +200,17 @@
         </div>
       </div>
       <div class="card-footer" style="flex-wrap:wrap;gap:8px">
-        <button class="btn btn-ghost" onclick="goTo(2)" id="p3-back">← Back</button>
-        <button class="btn btn-test" onclick="testWizardDiscord()" id="p3-test" style="display:none">🔔 Test</button>
-        <span id="p3-test-msg" style="font-size:11px;display:none;align-self:center"></span>
+        <button class="btn btn-ghost" onclick="goTo(1)" id="p2-back">← Back</button>
+        <button class="btn btn-test" onclick="testWizardDiscord()" id="p2-test" style="display:none">🔔 Test</button>
+        <span id="p2-test-msg" style="font-size:11px;display:none;align-self:center"></span>
         <button class="btn btn-accent" id="finish-btn" onclick="finishSetup()">✓ Finish setup</button>
       </div>
-      <div id="setup-errors-p3" style="margin:0 20px 14px;font-size:11px;color:var(--red);display:none;padding:8px 12px;background:rgba(255,77,77,.08);border-radius:6px;border:1px solid rgba(255,77,77,.25)"></div>
+      <div id="setup-errors-p2" style="margin:0 20px 14px;font-size:11px;color:var(--red);display:none;padding:8px 12px;background:rgba(255,77,77,.08);border-radius:6px;border:1px solid rgba(255,77,77,.25)"></div>
     </div>
   </div>
 
-  <!-- Pane 4: Done -->
-  <div id="pane-4" style="display:none">
+  <!-- Pane 3: Done -->
+  <div id="pane-3" style="display:none">
     <div class="card">
       <div class="card-body" style="padding:32px 26px">
         <div class="success-icon">✓</div>
@@ -259,7 +224,7 @@
         </div>
         {% endif %}
         <div style="text-align:center">
-          <button class="btn btn-accent" onclick="location.href='/'" style="padding:11px 26px">🚀 Go to dashboard</button>
+          <button class="btn btn-accent" onclick="location.href='/?setup_done=1'" style="padding:11px 26px">🚀 Go to dashboard</button>
         </div>
       </div>
     </div>
@@ -280,7 +245,6 @@ window.fetch = (resource, options = {}) => {
   return nativeFetch(request);
 };
 
-let lang = 'en';
 let currentTheme = '{{ theme|default("system") }}';
 let instances = [];  // [{id(temp), type, name, url, api_key, tested, version}]
 let nextTempId = 1;
@@ -326,38 +290,19 @@ function defaultArrUrl(type) {
   return `http://${getInstallHost()}:${port}`;
 }
 
-function selectLang(l, el) {
-  lang = 'en';
-  document.querySelectorAll('.lang-card').forEach(c => c.className = 'lang-card');
-  if (el) el.className = 'lang-card selected';
-  applyWizardLang();
-}
 function applyWizardLang() {
   const el = id => document.getElementById(id);
   // Step labels
   updateStepLabels();
-  // Pane 1 (Language)
-  const p1 = document.querySelector('#pane-1 .card-title');
-  if (el('p1-title')) el('p1-title').textContent = 'Choose language';
-  if (el('p1-sub'))   el('p1-sub').textContent   = 'Can be changed any time in the dashboard.';
-  if (el('add-inst-btn')) el('add-inst-btn').textContent = '+ Add instance';
-  if (el('no-inst-msg')) el('no-inst-msg').textContent = 'No instances. Click "+ Add instance".';
-  const p1s = document.querySelector('#pane-1 .card-sub');
-  if (p1s) p1s.textContent = 'Can be changed at any time in the dashboard.';
-  const p1step = document.querySelector('#pane-1 .card-footer span');
-  if (p1step) p1step.textContent = 'Step 1 of 4';
-  const p1next = document.querySelector('#pane-1 .btn-accent');
-  if (p1next) p1next.textContent = 'Next →';
-  // Pane 2 (Instances)
-  const p2title = document.querySelector('#pane-2 .card-title');
-  if (p2title) p2title.textContent = 'Configure instances';
-  const p2sub = document.querySelector('#pane-2 .card-sub');
-  if (p2sub) p2sub.innerHTML = 'Add any number of Sonarr and/or Radarr instances.<br>At least one instance is required. You can also use only Sonarr <em>or</em> only Radarr.';
-  if (el('p2-back')) el('p2-back').textContent = '← Back';
-  if (el('p2-next')) el('p2-next').textContent = 'Next →';
+  // Pane 1 (Instances)
+  const p1title = document.querySelector('#pane-1 .card-title');
+  if (p1title) p1title.textContent = 'Configure instances';
+  const p1sub = document.querySelector('#pane-1 .card-sub');
+  if (p1sub) p1sub.innerHTML = 'Add any number of Sonarr and/or Radarr instances.<br>At least one instance is required. You can also use only Sonarr <em>or</em> only Radarr.';
+  if (el('p1-next')) el('p1-next').textContent = 'Next →';
   const addBtn = document.querySelector('.add-btn');
   if (addBtn) addBtn.textContent = '+ Add instance';
-  // Pane 3 (Discord)
+  // Pane 2 (Discord)
   if (el('dc-wiz-title')) el('dc-wiz-title').textContent = 'Discord notifications (optional)';
   if (el('dc-wiz-sub'))   el('dc-wiz-sub').innerHTML = 'Can be configured later in Settings → Discord.<br>Create webhook: Server → Settings → Integrations → Webhooks.';
   if (el('dc-wiz-lbl-url')) el('dc-wiz-lbl-url').textContent = 'Webhook URL';
@@ -366,15 +311,14 @@ function applyWizardLang() {
   if (el('dc-wiz-ev2'))     el('dc-wiz-ev2').textContent = '⬆ Upgrade searched';
   if (el('dc-wiz-ev3'))     el('dc-wiz-ev3').textContent = '🚫 Daily limit';
   if (el('dc-wiz-ev4'))     el('dc-wiz-ev4').textContent = '📡 Instance offline';
-  if (el('p3-back'))        el('p3-back').textContent = '← Back';
+  if (el('p2-back'))        el('p2-back').textContent = '← Back';
   if (el('finish-btn'))     el('finish-btn').textContent = '✓ Finish setup';
   if (el('done-title'))     el('done-title').textContent = 'All set!';
   if (el('done-sub'))       el('done-sub').textContent   = 'mediahunter is starting and will begin searching automatically.';
-  const goBtnP4 = document.querySelector('#pane-4 .btn-accent');
-  if (goBtnP4) goBtnP4.textContent = '🚀 Go to dashboard';
-  // Pane 4 (Done)
-  const doneTitle = document.querySelector('#pane-4 .card-body > div:first-child');
-  const goBtn = document.querySelector('#pane-4 .btn-accent');
+  const goBtnP3 = document.querySelector('#pane-3 .btn-accent');
+  if (goBtnP3) goBtnP3.textContent = '🚀 Go to dashboard';
+  // Pane 3 (Done)
+  const goBtn = document.querySelector('#pane-3 .btn-accent');
   if (goBtn) goBtn.textContent = '🚀 Go to dashboard';
   // Instance card type select options
   document.querySelectorAll('select[id^="type-select-"]').forEach(sel => {
@@ -386,13 +330,13 @@ function applyWizardLang() {
 }
 
 function goTo(step) {
-  [1,2,3,4].forEach(i => {
+  [1,2,3].forEach(i => {
     const p = document.getElementById(`pane-${i}`);
     if (p) p.style.display = 'none';
   });
   const pg = document.getElementById(`pane-${step}`);
   if (pg) pg.style.display = '';
-  [1,2,3,4].forEach(i => {
+  [1,2,3].forEach(i => {
     const el = document.getElementById(`s${i}`);
     if (!el) return;
     el.className = 'step' + (i < step ? ' done' : i === step ? ' active' : '');
@@ -402,8 +346,8 @@ function goTo(step) {
   applyWizardLang();
 }
 function updateStepLabels() {
-  const labels = ['Language','Instances','Discord','Done'];
-  [1,2,3,4].forEach(i => {
+  const labels = ['Instances','Discord','Done'];
+  [1,2,3].forEach(i => {
     const el = document.getElementById(`s${i}`);
     if (el) el.querySelector('.step-lbl').textContent = labels[i-1];
   });
@@ -546,13 +490,13 @@ function goToDiscord() {
     errEl.style.display = 'block'; return;
   }
   document.getElementById('setup-errors').style.display = 'none';
-  const _p3e = document.getElementById('setup-errors-p3'); if (_p3e) _p3e.style.display = 'none';
-  goTo(3);
+  const _p2e = document.getElementById('setup-errors-p2'); if (_p2e) _p2e.style.display = 'none';
+  goTo(2);
 }
 
 async function testWizardDiscord() {
   const url = document.getElementById('wiz-dc-url')?.value?.trim();
-  const msg = document.getElementById('p3-test-msg');
+  const msg = document.getElementById('p2-test-msg');
   if (!url) return;
   if (msg) { msg.style.display='block'; msg.style.color='var(--muted2)'; msg.textContent='⟳ Testing...'; }
   // Temporarily save URL then test
@@ -573,7 +517,7 @@ async function testWizardDiscord() {
 }
 
 async function finishSetup() {
-  const errEl = document.getElementById('setup-errors-p3') || document.getElementById('setup-errors');
+  const errEl = document.getElementById('setup-errors-p2') || document.getElementById('setup-errors');
   const btn = document.getElementById('finish-btn');
   const btnOrigText = '✓ Finish setup';
   if (!btn) return;
@@ -624,7 +568,7 @@ async function finishSetup() {
   }
 
   const payload = {
-    language: lang,
+    language: 'en',
     theme: currentTheme,
     instances: instances.map(inst => ({
       id: inst.id, type: inst.type, name: inst.name.trim(),
@@ -647,7 +591,7 @@ async function finishSetup() {
       body: JSON.stringify(payload)
     });
     const d = await r.json();
-    if (d.ok) { buildSummary(); goTo(4); }
+    if (d.ok) { buildSummary(); goTo(3); }
     else {
       const rawErrors = d.errors || [d.error || 'Failed to save.'];
       const errMsg = rawErrors.map(e => {
@@ -671,7 +615,6 @@ async function finishSetup() {
 
 function buildSummary() {
   const rows = [
-    {key: 'Language', val: '🇬🇧 English'},
     ...instances.map(i => ({
       key: i.type === 'sonarr' ? '📺 ' + escHtml(i.name || '') : '🎬 ' + escHtml(i.name || ''),
       val: i.tested ? `Online (v${escHtml(i.version || '')})` : 'Configured'
@@ -684,17 +627,12 @@ function buildSummary() {
     </div>`).join('');
 }
 
-// Init: select EN, apply labels, add default instance
+// Init setup defaults and seed one instance
 (function init() {
   initTheme();
-  // Select EN card and apply all labels
-  document.querySelectorAll('.lang-card').forEach(c => c.className = 'lang-card');
-  const enCard = document.getElementById('lc-en');
-  if (enCard) enCard.className = 'lang-card selected';
-  lang = 'en';
   applyWizardLang();
   addInstance({type:'sonarr', name:'Sonarr', url: defaultArrUrl('sonarr')});
-applyWizardLang();
+  applyWizardLang();
 })();
 </script>
 </body>
