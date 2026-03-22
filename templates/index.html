@@ -448,7 +448,7 @@
             <div class="form-group">
               <label class="form-label" data-i18n="lbl_dryrun">Dry Run</label>
               <div class="toggle-row">
-                <div class="toggle" id="tog-dry" onclick="toggleCfg('dry')"></div>
+                <div class="toggle" id="tog-dry" onclick="toggleCfg('dry', true)"></div>
                 <span class="toggle-label" id="lab-dry">Aus</span>
               </div>
             </div>
@@ -997,12 +997,13 @@ function switchTab(name) {
 }
 
 // ══ Toggles ══
-function toggleCfg(key) {
+function toggleCfg(key, persist = false) {
   toggleStates[key] = !toggleStates[key];
   const tog = document.getElementById(`tog-${key}`);
   const lab = document.getElementById(`lab-${key}`);
   if (tog) tog.className = 'toggle' + (toggleStates[key] ? ' on' : '');
   if (lab) lab.textContent = t(toggleStates[key] ? 'on' : 'off');
+  if (persist && !_syncingFromServer) saveConfig();
 }
 
 // ══ Format helpers ══
