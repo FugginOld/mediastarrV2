@@ -1184,7 +1184,7 @@ function applyLang() {
   if (dailyLimitLabel) dailyLimitLabel.textContent = 'Daily limit';
 
   const newInstNameLabel = document.getElementById('new-inst-name-label');
-  if (newInstNameLabel) newInstNameLabel.textContent = isDE ? 'Name' : 'Name';
+  if (newInstNameLabel) newInstNameLabel.textContent = 'Name';
   const newInstTypeLabel = document.getElementById('new-inst-type-label');
   if (newInstTypeLabel) newInstTypeLabel.textContent = 'Type';
   const newInstUrlLabel = document.getElementById('new-inst-url-label');
@@ -1235,7 +1235,7 @@ function showPage(name) {
   if (name === 'settings' || name === 'log' || name === 'history' || name === 'stats') fetchState();
   if (name === 'log') { document.getElementById('logBadge').textContent='0'; document.getElementById('logBadge').className='nav-badge'; }
   if (name === 'settings' && document.getElementById('tab-instances')?.classList.contains('active')) {
-    renderSettingsInstances();
+    refreshSettingsInstances();
   }
   if (name === 'history') loadHistory();
   if (name === 'stats') loadStats();
@@ -1435,7 +1435,7 @@ function updateUI() {
   // Keep settings instance list in sync when that tab is visible.
   if (document.getElementById('page-settings')?.classList.contains('page-visible') &&
       document.getElementById('tab-instances')?.classList.contains('active')) {
-    renderSettingsInstances();
+    refreshSettingsInstances();
   }
 
   // Log
