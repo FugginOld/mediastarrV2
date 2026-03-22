@@ -58,6 +58,7 @@ URL_MAX_LEN         = 256
 MAX_INSTANCES       = 20
 MIN_INTERVAL_SEC    = 900   # 15 minutes absolute minimum
 AUTH_PASSWORD       = os.environ.get("MEDIAHUNTER_PASSWORD", "").strip()
+DEFAULT_PASSWORD    = "change-me"
 
 def normalize_theme_name(theme: str | None) -> str:
     value = str(theme or "").strip().lower()
@@ -1144,10 +1145,10 @@ def hunt_loop():
 @app.route("/")
 def index():
     if not CONFIG.get("setup_complete"): return redirect("/setup")
-    return render_template("index.html", auth_enabled=auth_enabled(), theme=normalize_theme_name(CONFIG.get("theme", "system")))
+    return render_template("index.html", auth_enabled=auth_enabled(), theme=normalize_theme_name(CONFIG.get("theme", "system")), default_pw=(AUTH_PASSWORD == DEFAULT_PASSWORD))
 
 @app.route("/setup")
-def setup_page(): return render_template("setup.html", auth_enabled=auth_enabled(), theme=normalize_theme_name(CONFIG.get("theme", "system")))
+def setup_page(): return render_template("setup.html", auth_enabled=auth_enabled(), theme=normalize_theme_name(CONFIG.get("theme", "system")), default_pw=(AUTH_PASSWORD == DEFAULT_PASSWORD))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -1558,6 +1559,8 @@ def start_runtime():
             return
         _startup_done = True
     log_act("System", msg("app_start"), "", "info")
+    if AUTH_PASSWORD == DEFAULT_PASSWORD:
+        logger.warning("MEDIAHUNTER_PASSWORD is set to the insecure default 'change-me' — update it before exposing this instance to a network.")
     if CONFIG.get("setup_complete"):
         _ensure_inst_stats(); ping_all()
         if CONFIG.get("auto_start", True):

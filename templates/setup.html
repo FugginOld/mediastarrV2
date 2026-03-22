@@ -97,6 +97,19 @@
     .sum-key{color:var(--muted2)}
     .sum-val{font-weight:500;display:flex;align-items:center;gap:6px}
     .dot-ok{width:6px;height:6px;border-radius:50%;background:var(--green)}
+    .pw-warn{background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.22);border-radius:8px;color:var(--yellow);padding:9px 13px;font-size:11px;display:flex;align-items:center;gap:8px;margin-bottom:16px}
+    .pw-warn code{background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:3px;font-family:inherit}
+    @media (max-width: 600px) {
+      body{padding:20px 12px}
+      .card-top{padding:14px 16px 12px}
+      .top-accent{margin:-14px -16px 14px}
+      .card-body{padding:14px 16px}
+      .card-footer{padding:12px 16px;flex-wrap:wrap;gap:6px}
+      .inst-body{grid-template-columns:1fr}
+      .lang-grid{grid-template-columns:1fr}
+      .step-lbl{font-size:9px}
+      .logo-name{font-size:22px}
+    }
   </style>
 </head>
 <body class="auth-ui">
@@ -239,6 +252,12 @@
         <div id="done-title" style="font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">All set!</div>
         <div id="done-sub" style="text-align:center;color:var(--muted2);font-size:11px;margin-bottom:22px">mediahunter is starting and will begin searching automatically.</div>
         <div class="summary-box" id="summary"></div>
+        {% if auth_enabled and default_pw %}
+        <div class="pw-warn">
+          <span>⚠</span>
+          <span>Default password <code>change-me</code> is in use — set <code>MEDIAHUNTER_PASSWORD</code> to a strong secret before exposing this instance to a network.</span>
+        </div>
+        {% endif %}
         <div style="text-align:center">
           <button class="btn btn-accent" onclick="location.href='/'" style="padding:11px 26px">🚀 Go to dashboard</button>
         </div>
