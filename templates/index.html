@@ -1932,6 +1932,7 @@ syncNewInstUrlHint();
 setInterval(fetchState, 4000);
 setInterval(() => { if (document.getElementById('page-stats')?.style.display!=='none') loadStats(); }, 30000);
 </script>
+<script>
 const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
 const nativeFetch = window.fetch.bind(window);
 window.fetch = (resource, options = {}) => {
@@ -1944,6 +1945,7 @@ window.fetch = (resource, options = {}) => {
   }
   return nativeFetch(request);
 };
+</script>
 
 </body>
 </html>
