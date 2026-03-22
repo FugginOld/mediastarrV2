@@ -205,7 +205,7 @@ MSGS = {
         "skipped_offline":  "Übersprungen – Offline oder deaktiviert",
         "auto_start":       "Hunt-Schleife gestartet",
         "app_start":        "mediastarrv2 v6.0.2 gestartet",
-        "setup_required":   "Einrichtung erforderlich – http://localhost:7979/setup",
+        "setup_required":   "Einrichtung erforderlich – {setup_url}",
         "missing":          "Fehlend",
         "upgrade":          "Upgrade",
         "error":            "Fehler",
@@ -219,7 +219,7 @@ MSGS = {
         "skipped_offline":  "Skipped – offline or disabled",
         "auto_start":       "Hunt loop started",
         "app_start":        "mediastarrv2 v6.0.2 started",
-        "setup_required":   "Setup required – http://localhost:7979/setup",
+        "setup_required":   "Setup required – {setup_url}",
         "missing":          "Missing",
         "upgrade":          "Upgrade",
         "error":            "Error",
@@ -232,6 +232,25 @@ def msg(key: str, **kwargs) -> str:
     tmpl = MSGS.get(lang, MSGS["en"]).get(key, key)
     try: return tmpl.format(**kwargs)
     except: return tmpl
+
+
+def setup_url_for_logs() -> str:
+    """Return externally reachable setup URL for startup logs.
+
+    Priority:
+    1) MEDIASTARR_PUBLIC_URL (full URL, e.g. https://host.example.com)
+    2) MEDIASTARR_PUBLIC_PORT (host-mapped port, e.g. 9191)
+    3) default localhost:7979
+    """
+    public_url = os.environ.get("MEDIASTARR_PUBLIC_URL", "").strip().rstrip("/")
+    if public_url:
+        return f"{public_url}/setup"
+
+    public_port = os.environ.get("MEDIASTARR_PUBLIC_PORT", "").strip()
+    if public_port.isdigit():
+        return f"http://localhost:{public_port}/setup"
+
+    return "http://localhost:7979/setup"
 
 # ─── Paths ───────────────────────────────────────────────────────────────────
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
@@ -1279,7 +1298,7 @@ def start_runtime():
             hunt_thread = threading.Thread(target=hunt_loop, daemon=True); hunt_thread.start()
             log_act("System", msg("auto_start"), "", "info")
     else:
-        log_act("System", msg("setup_required"), "", "warning")
+        log_act("System", msg("setup_required", setup_url=setup_url_for_logs()), "", "warning")
 
 
 start_runtime()
