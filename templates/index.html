@@ -51,12 +51,13 @@
 
     /* ── Sidebar ── */
     .sidebar {
-      width: 178px; flex-shrink: 0; background: color-mix(in srgb, var(--bg2) 90%, transparent);
+      width: 212px; flex-shrink: 0; background: color-mix(in srgb, var(--bg2) 90%, transparent);
       border-right: 1px solid var(--border); display: flex;
       flex-direction: column;
     }
     .logo-wrap { padding: 10px 10px 16px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
-    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .logo > div:last-child { min-width: 0; }
     .logo-mark {
       width: 46px; height: 46px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
@@ -67,9 +68,28 @@
       box-shadow: 0 10px 24px rgba(0,0,0,0.2);
     }
     .logo-mark img { width: 100%; height: 100%; object-fit: cover; object-position: center 28%; display: block; transform: scale(1.03); }
-    .logo-name { font-family: 'Bricolage Grotesque', sans-serif; font-size: 21px; font-weight: 800; letter-spacing: -0.04em; color: var(--text); line-height: 1; }
+    .logo-name {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--text);
+      line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .logo-name span { color: var(--accent); }
-    .logo-sub { font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--muted); margin-top: 4px; }
+    .logo-sub {
+      font-size: 11px;
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--muted);
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .nav { padding: 0 8px 12px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
     .nav-item {
       display: flex; align-items: center; gap: 10px; padding: 10px 12px;
@@ -88,6 +108,15 @@
     .sidebar-bottom { margin-top: auto; padding: 12px 10px 0; border-top: 1px solid var(--border); }
     .theme-grid { margin-bottom: 8px; }
     .version-tag { font-size: 10px; color: var(--muted); text-align: center; }
+    .version-tag a { display: inline-block; max-width: 100%; }
+    .version-badge {
+      display: inline-block;
+      max-width: 150px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: bottom;
+    }
     .logout-form { margin-bottom: 6px; }
     .logout-btn { width:100%; font-size:10px; padding:5px; color:var(--muted2); }
 
@@ -186,6 +215,31 @@
     .log-action { font-size: 11px; }
     .log-item { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+    /* ── Dashboard split (Preview D parity) ── */
+    .dash-split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      min-height: 0;
+      gap: 14px;
+    }
+    .dash-left {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .dash-right {
+      min-width: 0;
+      border-left: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg2) 84%, transparent);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+    #page-dashboard .service-cards { grid-column: auto; }
+    #page-dashboard .log-card { height: 100%; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+    #page-dashboard .log-card .card-header { border-bottom: 1px solid var(--border); }
+    #page-dashboard .log-scroll { max-height: none; height: 100%; padding-bottom: 14px; }
+
     /* ── Settings ── */
     .settings-card { display: flex; flex-direction: column; }
     .tabs-row { display: flex; padding: 0 18px; border-bottom: 1px solid var(--border); }
@@ -254,6 +308,8 @@
       .sidebar { display: none; }
       .layout { min-height: calc(100vh - 28px); }
       .content { grid-template-columns: 1fr; padding: 14px; }
+      .dash-split { grid-template-columns: 1fr; }
+      .dash-right { border-left: 0; border-top: 1px solid var(--border); }
       .service-cards { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
       .topbar, .controls-bar { padding: 10px 14px; }
@@ -416,44 +472,50 @@
     </div>
 
     <!-- ══ DASHBOARD ══ -->
-    <div id="page-dashboard" class="content" style="display:grid">
-      <!-- Dynamic instance cards — filled by renderInstanceCards() -->
-        <div id="instance-cards" class="service-cards">
-          <div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:20px">Loading instances...</div>
+    <div id="page-dashboard" class="content" style="display:block">
+      <div class="dash-split">
+        <div class="dash-left">
+          <!-- Dynamic instance cards — filled by renderInstanceCards() -->
+          <div id="instance-cards" class="service-cards">
+            <div style="grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:20px">Loading instances...</div>
+          </div>
+
+          <!-- Overview -->
+          <div class="card">
+            <!-- Daily limit bar -->
+            <div class="limit-bar-wrap">
+              <div class="limit-bar-header">
+                <span class="limit-bar-label" id="daily-limit-label">Daily limit</span>
+                <span class="limit-bar-count" id="daily-counter">0 / —</span>
+              </div>
+              <div class="limit-bar-track"><div class="limit-bar-fill" id="daily-bar"></div></div>
+              <div class="limit-bar-hint" id="daily-hint">—</div>
+            </div>
+            <div class="card-body" style="padding-top:8px">
+              <div class="overview-rows">
+                <div class="ov-row"><span class="ov-label" data-i18n="ov_missing_lbl">Missing interval</span><span class="ov-val" id="ov-missing">—</span></div>
+                <div class="ov-row"><span class="ov-label" data-i18n="ov_max_lbl">Max per run</span><span class="ov-val" id="ov-max">—</span></div>
+                <div class="ov-row"><span class="ov-label" data-i18n="ov_cooldown_lbl">Cooldown</span><span class="ov-val" style="color:var(--blue)" id="ov-cooldown">—</span></div>
+                <div class="ov-row"><span class="ov-label" data-i18n="ov_db_lbl">DB entries</span><span class="ov-val" style="color:var(--yellow)" id="ov-db">0</span></div>
+                <div class="ov-row"><span class="ov-label" data-i18n="ov_dry_lbl">Dry Run</span><span class="ov-val" id="ov-dry">—</span></div>
+                <div class="ov-row"><span class="ov-label" data-i18n="ov_total_lbl">Total searches</span><span class="ov-val" style="color:var(--accent)" id="ov-total">0</span></div>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:10px">
+                <button class="btn btn-now" style="flex:1;justify-content:center;font-size:11px" onclick="showPage('history')">📋 History</button>
+                <button class="btn btn-stop" style="flex:1;justify-content:center;font-size:11px" onclick="confirmClear('all')">🗑 Reset DB</button>
+              </div>
+            </div>
+          </div>
         </div>
 
-      <!-- Log (left) -->
-      <div class="card log-card">
-        <div class="card-header"><div class="card-title" data-i18n="log">Activity Log</div><button class="btn" style="font-size:10px;padding:3px 8px" onclick="clearLog()" data-i18n="btn_clear">Clear</button></div>
-        <div class="log-scroll" id="logScroll"><div class="log-empty">Waiting for activity...</div></div>
-      </div>
-
-      <!-- Overview (right) -->
-      <div class="card">
-        <!-- Daily limit bar -->
-        <div class="limit-bar-wrap">
-          <div class="limit-bar-header">
-            <span class="limit-bar-label" id="daily-limit-label">Daily limit</span>
-            <span class="limit-bar-count" id="daily-counter">0 / —</span>
+        <aside class="dash-right">
+          <!-- Live activity (right rail) -->
+          <div class="card log-card">
+            <div class="card-header"><div class="card-title" data-i18n="log">Activity Log</div><button class="btn" style="font-size:10px;padding:3px 8px" onclick="clearLog()" data-i18n="btn_clear">Clear</button></div>
+            <div class="log-scroll" id="logScroll"><div class="log-empty">Waiting for activity...</div></div>
           </div>
-          <div class="limit-bar-track"><div class="limit-bar-fill" id="daily-bar"></div></div>
-          <div class="limit-bar-hint" id="daily-hint">—</div>
+        </aside>
         </div>
-        <div class="card-body" style="padding-top:8px">
-          <div class="overview-rows">
-            <div class="ov-row"><span class="ov-label" data-i18n="ov_missing_lbl">Missing interval</span><span class="ov-val" id="ov-missing">—</span></div>
-            <div class="ov-row"><span class="ov-label" data-i18n="ov_max_lbl">Max per run</span><span class="ov-val" id="ov-max">—</span></div>
-            <div class="ov-row"><span class="ov-label" data-i18n="ov_cooldown_lbl">Cooldown</span><span class="ov-val" style="color:var(--blue)" id="ov-cooldown">—</span></div>
-            <div class="ov-row"><span class="ov-label" data-i18n="ov_db_lbl">DB entries</span><span class="ov-val" style="color:var(--yellow)" id="ov-db">0</span></div>
-            <div class="ov-row"><span class="ov-label" data-i18n="ov_dry_lbl">Dry Run</span><span class="ov-val" id="ov-dry">—</span></div>
-            <div class="ov-row"><span class="ov-label" data-i18n="ov_total_lbl">Total searches</span><span class="ov-val" style="color:var(--accent)" id="ov-total">0</span></div>
-          </div>
-          <div style="display:flex;gap:6px;margin-top:10px">
-            <button class="btn btn-now" style="flex:1;justify-content:center;font-size:11px" onclick="showPage('history')">📋 History</button>
-            <button class="btn btn-stop" style="flex:1;justify-content:center;font-size:11px" onclick="confirmClear('all')">🗑 Reset DB</button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ══ SETTINGS ══ -->
@@ -982,7 +1044,7 @@ function showPage(name) {
     if (el) el.style.display = 'none';
   });
   const pg = document.getElementById(`page-${name}`);
-  if (pg) pg.style.display = 'grid';
+  if (pg) pg.style.display = (name === 'dashboard') ? 'block' : 'grid';
   document.getElementById('pageTitle').textContent = t(name);
   document.querySelectorAll('.nav-item').forEach((el,i) => {
     el.className = 'nav-item' + (['dashboard','settings','history','log','stats'][i]===name ? ' active' : '');
