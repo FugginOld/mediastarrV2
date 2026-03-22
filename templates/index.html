@@ -1233,6 +1233,7 @@ function showPage(name) {
     el.className = 'nav-item' + (el.dataset.page === name ? ' active' : '');
   });
   if (name === 'settings' || name === 'log' || name === 'history' || name === 'stats') fetchState();
+  if (name === 'settings') refreshSettingsInstances();
   if (name === 'log') { document.getElementById('logBadge').textContent='0'; document.getElementById('logBadge').className='nav-badge'; }
   if (name === 'settings' && document.getElementById('tab-instances')?.classList.contains('active')) {
     refreshSettingsInstances();
@@ -1248,6 +1249,10 @@ function switchTab(name) {
   if (name==='instances') {
     renderSettingsInstances();
     refreshSettingsInstances();
+    return;
+  }
+  if (name==='discord' || name==='general') {
+    fetchState();
   }
 }
 
@@ -1313,8 +1318,33 @@ async function fetchState() {
   try {
     const r = await fetch('/api/state');
     appState = await r.json();
+  } catch(e) {
+    console.error('fetchState failed', e);
+    return;
+  }
+
+  try {
     updateUI();
-  } catch(e) {}
+  } catch (e) {
+    console.error('updateUI failed', e);
+    try { renderInstanceCards(appState.instances || [], appState.inst_stats || {}); } catch (inner) { console.error('renderInstanceCards fallback failed', inner); }
+    try {
+      if (document.getElementById('page-settings')?.classList.contains('page-visible') &&
+          document.getElementById('tab-instances')?.classList.contains('active')) {
+        renderSettingsInstances();
+      }
+    } catch (inner) {
+      console.error('renderSettingsInstances fallback failed', inner);
+    }
+    try {
+      if (appState.activity_log) {
+        renderLog(appState.activity_log, 'logScroll');
+        renderLog(appState.activity_log, 'logScrollFull');
+      }
+    } catch (inner) {
+      console.error('renderLog fallback failed', inner);
+    }
+  }
 }
 
 function updateUI() {
@@ -1353,80 +1383,79 @@ function updateUI() {
   }
 
   // Config sync
-  if (s.config) {
-    const c = s.config;
-    const el = id => document.getElementById(id);
-    const syncField = (id, val) => {
-      const f = el(id); if (f && document.activeElement !== f) f.value = val;
-    };
-    syncField('cfg-missing',  c.hunt_missing_delay);
-    syncField('cfg-upgrade',  c.hunt_upgrade_delay);
-    syncField('cfg-max',      c.max_searches_per_run);
-    syncField('cfg-daily',    c.daily_limit ?? 20);
-    syncField('cfg-cooldown', c.cooldown_days ?? 7);
-
-    toggleStates.dry    = c.dry_run;
-    toggleStates.sonarr = c.sonarr?.enabled ?? true;
-    toggleStates.radarr = c.radarr?.enabled ?? true;
-    ['dry','sonarr','radarr'].forEach(k => {
-      const tog = el(`tog-${k}`), lab = el(`lab-${k}`);
-      if (tog) tog.className = 'toggle' + (toggleStates[k]?' on':'');
-      if (lab) lab.textContent = t(toggleStates[k]?'on':'off');
-    });
-
-    // Overview
-    if (el('ov-missing'))  el('ov-missing').textContent  = fmtSec(c.hunt_missing_delay);
-    if (el('ov-max'))      el('ov-max').textContent      = c.max_searches_per_run;
-    if (el('ov-cooldown')) el('ov-cooldown').textContent = fmtDays(c.cooldown_days ?? 7);
-    if (el('ov-dry'))      { el('ov-dry').textContent = c.dry_run?t('on'):t('off'); el('ov-dry').style.color = c.dry_run?'var(--accent)':'var(--text)'; }
-    if (el('ov-total'))    el('ov-total').textContent = s.total_searches || 0;
-    if (el('ov-db'))       el('ov-db').textContent    = s.total_searches || 0;
-
-    // Theme/lang sync from server (suppress saveConfig to avoid loop)
-    _syncingFromServer = true;
-    if (c.theme && c.theme !== currentTheme) setTheme(c.theme);
-    _syncingFromServer = false;
-    if (c.sonarr?.url && el('cfg-sonarr-url')) el('cfg-sonarr-url').placeholder = c.sonarr.url;
-    // Sync Discord toggles + new fields
-    if (c.discord) {
-      const dcKeyMap = {
-        enabled:'enabled', missing:'notify_missing', upgrade:'notify_upgrade',
-        cooldown:'notify_cooldown', limit:'notify_limit', offline:'notify_offline',
-        stats:'notify_stats'
+  try {
+    if (s.config) {
+      const c = s.config;
+      const el = id => document.getElementById(id);
+      const syncField = (id, val) => {
+        const f = el(id); if (f && document.activeElement !== f) f.value = val;
       };
-      Object.entries(dcKeyMap).forEach(([key, dcKey]) => {
-        const val = c.discord[dcKey] !== undefined ? c.discord[dcKey] : dcStates[key];
-        dcStates[key] = val;
-        const tog = document.getElementById(`tog-dc-${key}`);
-        const lab = document.getElementById(`lab-dc-${key}`);
-        if (tog) tog.className = 'toggle' + (val ? ' on' : '');
-        if (lab) lab.textContent = t(val ? 'on' : 'off');
+      syncField('cfg-missing',  c.hunt_missing_delay);
+      syncField('cfg-upgrade',  c.hunt_upgrade_delay);
+      syncField('cfg-max',      c.max_searches_per_run);
+      syncField('cfg-daily',    c.daily_limit ?? 20);
+      syncField('cfg-cooldown', c.cooldown_days ?? 7);
+
+      toggleStates.dry    = c.dry_run;
+      toggleStates.sonarr = c.sonarr?.enabled ?? true;
+      toggleStates.radarr = c.radarr?.enabled ?? true;
+      ['dry','sonarr','radarr'].forEach(k => {
+        const tog = el(`tog-${k}`), lab = el(`lab-${k}`);
+        if (tog) tog.className = 'toggle' + (toggleStates[k]?' on':'');
+        if (lab) lab.textContent = t(toggleStates[k]?'on':'off');
       });
-      // Sync numeric fields
-      const intEl = document.getElementById('dc-stats-interval');
-      const rlEl  = document.getElementById('dc-ratelimit');
-      if (intEl && document.activeElement !== intEl && c.discord.stats_interval_min != null)
-        intEl.value = c.discord.stats_interval_min;
-      if (rlEl && document.activeElement !== rlEl && c.discord.rate_limit_cooldown != null)
-        rlEl.value = c.discord.rate_limit_cooldown;
+
+      if (el('ov-missing'))  el('ov-missing').textContent  = fmtSec(c.hunt_missing_delay);
+      if (el('ov-max'))      el('ov-max').textContent      = c.max_searches_per_run;
+      if (el('ov-cooldown')) el('ov-cooldown').textContent = fmtDays(c.cooldown_days ?? 7);
+      if (el('ov-dry'))      { el('ov-dry').textContent = c.dry_run?t('on'):t('off'); el('ov-dry').style.color = c.dry_run?'var(--accent)':'var(--text)'; }
+      if (el('ov-total'))    el('ov-total').textContent = s.total_searches || 0;
+      if (el('ov-db'))       el('ov-db').textContent    = s.total_searches || 0;
+
+      _syncingFromServer = true;
+      if (c.theme && c.theme !== currentTheme) setTheme(c.theme);
+      _syncingFromServer = false;
+      if (c.sonarr?.url && el('cfg-sonarr-url')) el('cfg-sonarr-url').placeholder = c.sonarr.url;
+      if (c.discord) {
+        const dcKeyMap = {
+          enabled:'enabled', missing:'notify_missing', upgrade:'notify_upgrade',
+          cooldown:'notify_cooldown', limit:'notify_limit', offline:'notify_offline',
+          stats:'notify_stats'
+        };
+        Object.entries(dcKeyMap).forEach(([key, dcKey]) => {
+          const val = c.discord[dcKey] !== undefined ? c.discord[dcKey] : dcStates[key];
+          dcStates[key] = val;
+          const tog = document.getElementById(`tog-dc-${key}`);
+          const lab = document.getElementById(`lab-dc-${key}`);
+          if (tog) tog.className = 'toggle' + (val ? ' on' : '');
+          if (lab) lab.textContent = t(val ? 'on' : 'off');
+        });
+        const intEl = document.getElementById('dc-stats-interval');
+        const rlEl  = document.getElementById('dc-ratelimit');
+        if (intEl && document.activeElement !== intEl && c.discord.stats_interval_min != null)
+          intEl.value = c.discord.stats_interval_min;
+        if (rlEl && document.activeElement !== rlEl && c.discord.rate_limit_cooldown != null)
+          rlEl.value = c.discord.rate_limit_cooldown;
+      }
+      if (c.discord_configured) {
+        const badge = document.getElementById('dc-configured-badge');
+        if (badge) badge.style.display = '';
+      }
+      if (typeof applyDcLang === 'function') applyDcLang();
+      if (c.radarr?.url && el('cfg-radarr-url')) el('cfg-radarr-url').placeholder = c.radarr.url;
+      syncField('cfg-jitter',  c.jitter_max ?? 300);
+      syncField('cfg-timeout', c.request_timeout ?? 30);
+      const modeEl = el('cfg-sonarr-mode');
+      if (modeEl && document.activeElement !== modeEl) modeEl.value = c.sonarr_search_mode || 'season';
+      const tzEl = el('cfg-timezone');
+      if (tzEl && document.activeElement !== tzEl) tzEl.value = c.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      toggleStates2.upgrades = c.search_upgrades !== false;
+      const togUp = el('tog-upgrades'), labUp = el('lab-upgrades');
+      if (togUp) togUp.className = 'toggle' + (toggleStates2.upgrades ? ' on' : '');
+      if (labUp) labUp.textContent = toggleStates2.upgrades ? t('on') : t('off');
     }
-    if (c.discord_configured) {
-      const badge = document.getElementById('dc-configured-badge');
-      if (badge) badge.style.display = '';
-    }
-    // Apply Discord i18n labels whenever state updates
-    if (typeof applyDcLang === 'function') applyDcLang();
-    if (c.radarr?.url && el('cfg-radarr-url')) el('cfg-radarr-url').placeholder = c.radarr.url;
-    syncField('cfg-jitter',  c.jitter_max ?? 300);
-    syncField('cfg-timeout', c.request_timeout ?? 30);
-    const modeEl = el('cfg-sonarr-mode');
-    if (modeEl && document.activeElement !== modeEl) modeEl.value = c.sonarr_search_mode || 'season';
-    const tzEl = el('cfg-timezone');
-    if (tzEl && document.activeElement !== tzEl) tzEl.value = c.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-    toggleStates2.upgrades = c.search_upgrades !== false;
-    const togUp = el('tog-upgrades'), labUp = el('lab-upgrades');
-    if (togUp) togUp.className = 'toggle' + (toggleStates2.upgrades ? ' on' : '');
-    if (labUp) labUp.textContent = toggleStates2.upgrades ? t('on') : t('off');
+  } catch (e) {
+    console.error('Config sync failed', e);
   }
 
   // Service cards
@@ -1531,12 +1560,17 @@ function renderLog(entries, containerId) {
     return;
   }
   el.innerHTML = entries.map(e => {
-    const svc = e.service.toLowerCase().replace(/[^a-z]/g,'');
+    const rawService = String(e?.service || 'system');
+    const svc = rawService.toLowerCase().replace(/[^a-z]/g,'');
     const svcLabel = (['sonarr','radarr','system'].find(s => svc.includes(s)) || 'system').toUpperCase();
-    const txt = e.action + (e.item ? ' - ' + e.item : '');
+    const statusClass = String(e?.status || 'unknown').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const tsLabel = escHtml(String(e?.ts || ''));
+    const actionText = String(e?.action || 'Event');
+    const itemText = e?.item ? ` - ${String(e.item)}` : '';
+    const txt = escHtml(`${actionText}${itemText}`);
     return `<div class="log-event">
-      <div class="log-event-top"><span>${e.ts}</span><span>${svcLabel}</span></div>
-      <div class="log-event-msg ${e.status}" title="${txt}">${txt}</div>
+      <div class="log-event-top"><span>${tsLabel}</span><span>${svcLabel}</span></div>
+      <div class="log-event-msg ${statusClass}" title="${txt}">${txt}</div>
     </div>`;
   }).join('');
 }
@@ -1735,15 +1769,15 @@ function renderHistory() {
     </div>` +
     filtered.map(h => `
     <div class="hist-row">
-      <span class="log-ts">${h.searched_at?.split('T')[1]?.slice(0,5)||'—'}</span>
-      <span class="log-svc ${h.service}">${h.service}</span>
-      <span class="hist-type">${h.item_type}</span>
-      <span class="hist-year">${h.release_year||'—'}</span>
-      <span class="hist-title" title="${h.title}">${h.title||h.item_id}</span>
+      <span class="log-ts">${escHtml(h.searched_at?.split('T')[1]?.slice(0,5)||'—')}</span>
+      <span class="log-svc ${escHtml(String(h.service || 'system'))}">${escHtml(String(h.service || 'system'))}</span>
+      <span class="hist-type">${escHtml(String(h.item_type || 'unknown'))}</span>
+      <span class="hist-year">${escHtml(String(h.release_year||'—'))}</span>
+      <span class="hist-title" title="${escHtml(String(h.title||h.item_id||''))}">${escHtml(String(h.title||h.item_id||''))}</span>
       <span class="hist-status ${h.on_cooldown?'on-cooldown':'off-cooldown'}">
-        ${h.on_cooldown ? `🔒 until ${h.expires_label}` : '✓ Free'}
+        ${h.on_cooldown ? `🔒 until ${escHtml(String(h.expires_label || 'unknown'))}` : '✓ Free'}
       </span>
-      <span class="hist-count-badge">${h.search_count||1}×</span>
+      <span class="hist-count-badge">${escHtml(String(h.search_count||1))}×</span>
     </div>`).join('');
 }
 
@@ -1977,13 +2011,15 @@ async function loadStats() {
       fetch('/api/history/stats'),
       fetch('/api/state')
     ]);
+    if (!histR.ok) throw new Error(`history stats API returned ${histR.status}`);
+    if (!stateR.ok) throw new Error(`state API returned ${stateR.status}`);
     const hist  = await histR.json();
     const state = await stateR.json();
     statsCache = { hist, state };
     renderStats(hist, state);
   } catch(e) {
     console.error('Stats load error', e);
-    setStatsLoadError('No statistics available yet. Start a hunt cycle to populate this page.');
+    setStatsLoadError(`No statistics available yet. ${e?.message || 'Please check backend logs.'}`);
   }
 }
 
