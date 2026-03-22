@@ -20,7 +20,10 @@ from pathlib import Path
 from urllib.parse import urlparse
 from flask import Flask, render_template, jsonify, request, redirect, session, url_for
 from collections import deque
-import db
+try:
+    from . import db
+except ImportError:
+    import db
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 app.config["SECRET_KEY"] = os.environ.get("MEDIASTARR_SESSION_SECRET") or secrets.token_hex(32)
