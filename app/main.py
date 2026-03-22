@@ -601,8 +601,51 @@ def daily_limit_reached() -> bool:
     limit = CONFIG.get("daily_limit", 0)
     return limit > 0 and db.count_today() >= limit
 
-def should_search(iid:str, item_type:str, item_id:int):
+def _parse_release_dt(raw):
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    # Most Arr payloads contain YYYY-MM-DD or full ISO datetime.
+    if len(s) >= 10:
+        try:
+            return datetime.fromisoformat(s[:10])
+        except Exception:
+            pass
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except Exception:
+        pass
+    if len(s) >= 4 and s[:4].isdigit():
+        try:
+            return datetime(int(s[:4]), 1, 1)
+        except Exception:
+            return None
+    return None
+
+def _pick_release_dt(record: dict, *keys):
+    for key in keys:
+        dt = _parse_release_dt(record.get(key))
+        if dt is not None:
+            return dt
+    return None
+
+def _is_older_than_cooldown(release_dt):
+    if release_dt is None:
+        return False
+    cooldown_days = CONFIG.get("cooldown_days", 7)
+    try:
+        age_days = (datetime.utcnow().date() - release_dt.date()).days
+        return age_days >= cooldown_days
+    except Exception:
+        return False
+
+def should_search(iid:str, item_type:str, item_id:int, release_dt=None):
     if daily_limit_reached(): return False, "daily_limit"
+    # Requested behavior: older titles bypass cooldown and can be searched now.
+    if _is_older_than_cooldown(release_dt):
+        return True, ""
     if db.is_on_cooldown(iid, item_type, item_id, CONFIG.get("cooldown_days",7)):
         return False, "cooldown"
     return True, ""
@@ -708,7 +751,9 @@ def hunt_sonarr_instance(inst: dict):
         for ep in recs:
             if STOP_EVENT.is_set() or searched >= CONFIG["max_searches_per_run"]: break
             title = ep_title(ep)
-            ok, reason = should_search(iid, "episode", ep["id"])
+            series_obj = ep.get("series", {}) or {}
+            release_dt = _pick_release_dt(ep, "airDate", "airDateUtc", "firstAired", "year") or _pick_release_dt(series_obj, "year")
+            ok, reason = should_search(iid, "episode", ep["id"], release_dt=release_dt)
             if not ok:
                 stats[f"skipped_{reason}"] += 1
                 if reason == "daily_limit":
@@ -750,7 +795,9 @@ def hunt_sonarr_instance(inst: dict):
         for ep in recs:
             if STOP_EVENT.is_set() or searched >= CONFIG["max_searches_per_run"]: break
             title = ep_title(ep)
-            ok, reason = should_search(iid, "episode_upgrade", ep["id"])
+            series_obj = ep.get("series", {}) or {}
+            release_dt = _pick_release_dt(ep, "airDate", "airDateUtc", "firstAired", "year") or _pick_release_dt(series_obj, "year")
+            ok, reason = should_search(iid, "episode_upgrade", ep["id"], release_dt=release_dt)
             if not ok:
                 stats[f"skipped_{reason}"] += 1
                 if reason == "daily_limit": return
@@ -783,7 +830,8 @@ def hunt_radarr_instance(inst: dict):
             title = str(movie.get("title","?"))[:100]
             year  = _year(movie.get("year"))
             if year: title = f"{title} ({year})"
-            ok, reason = should_search(iid, "movie", movie["id"])
+            release_dt = _pick_release_dt(movie, "digitalRelease", "physicalRelease", "inCinemas", "releaseDate", "year")
+            ok, reason = should_search(iid, "movie", movie["id"], release_dt=release_dt)
             if not ok:
                 stats[f"skipped_{reason}"] += 1
                 if reason == "daily_limit":
@@ -813,7 +861,8 @@ def hunt_radarr_instance(inst: dict):
             title = str(movie.get("title","?"))[:100]
             year  = _year(movie.get("year"))
             if year: title = f"{title} ({year})"
-            ok, reason = should_search(iid, "movie_upgrade", movie["id"])
+            release_dt = _pick_release_dt(movie, "digitalRelease", "physicalRelease", "inCinemas", "releaseDate", "year")
+            ok, reason = should_search(iid, "movie_upgrade", movie["id"], release_dt=release_dt)
             if not ok:
                 stats[f"skipped_{reason}"] += 1
                 if reason == "daily_limit": return
