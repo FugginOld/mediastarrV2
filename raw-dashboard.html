@@ -1,17 +1,17 @@
-﻿<!DOCTYPE html>
-<html lang="en" data-theme="{{ theme|default('system') }}">
+?<!DOCTYPE html>
+<html lang="en" data-theme="plex-inspired">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="csrf-token" content="48ee1866dd448cd179ca27bdb7cc2925f9831092f242487b844e21eed54a2673">
   <title>MediaHunter</title>
-  <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='icon.png') }}">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.png') }}">
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/icon.png">
+  <link rel="apple-touch-icon" href="/static/icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=DM+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500;600&family=Bricolage+Grotesque:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='theme-system.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='ui-primitives.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='status-primitives.css') }}">
+  <link rel="stylesheet" href="/static/theme-system.css">
+  <link rel="stylesheet" href="/static/ui-primitives.css">
+  <link rel="stylesheet" href="/static/status-primitives.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
@@ -28,7 +28,7 @@
       padding: 14px;
     }
 
-    /* ── Ambient glows (dark/oled only) ── */
+    /* -- Ambient glows (dark/oled only) -- */
     .ambient { position: fixed; border-radius: 50%; filter: blur(120px); opacity: 0.07; pointer-events: none; z-index: 0; }
     .ambient-1 { width: 600px; height: 600px; top: -200px; left: -200px; background: var(--accent); }
     .ambient-2 { width: 500px; height: 500px; bottom: -200px; right: -100px; background: var(--blue); }
@@ -36,7 +36,7 @@
       [data-theme="system"] .ambient { opacity: 0; }
     }
 
-    /* ══════════ LAYOUT ══════════ */
+    /* ---------- LAYOUT ---------- */
     .layout {
       display: flex;
       min-height: calc(100vh - 28px);
@@ -49,7 +49,7 @@
       box-shadow: 0 22px 70px rgba(0,0,0,0.28);
     }
 
-    /* ── Sidebar ── */
+    /* -- Sidebar -- */
     .sidebar {
       width: 208px; flex-shrink: 0; background: color-mix(in srgb, var(--bg2) 90%, transparent);
       border-right: 1px solid var(--border); display: flex;
@@ -109,7 +109,7 @@
     .nav-item-external { margin-top: 4px; border-top: 1px solid var(--border); padding-top: 10px; }
     .nav-external-icon { font-size: 9px; color: var(--muted); }
 
-    /* ── Theme Switcher ── */
+    /* -- Theme Switcher -- */
     .sidebar-bottom { margin-top: auto; padding: 12px 10px 0; border-top: 1px solid var(--border); }
     .theme-grid { margin-bottom: 8px; }
     .sidebar-caption { font-size: 10px; color: var(--muted2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
@@ -127,7 +127,7 @@
     .logout-btn { width:100%; font-size:10px; padding:5px; color:var(--muted2); }
     .sidebar-reset-btn { width: 100%; font-size: 10px; padding: 5px; margin-bottom: 6px; color: var(--muted2); }
 
-    /* ══════════ MAIN ══════════ */
+    /* ---------- MAIN ---------- */
     .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .topbar {
       padding: 14px 18px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg2) 92%, transparent);
@@ -161,7 +161,7 @@
     .meta-strip { margin-left: auto; font-size: 11px; color: var(--muted2); display: flex; gap: 14px; font-family: 'JetBrains Mono', monospace; }
     .meta-strip b { color: var(--text); }
 
-    /* ══════════ CONTENT GRID ══════════ */
+    /* ---------- CONTENT GRID ---------- */
     .content { flex: 1; padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .content-page { display: none; }
     .content-page.page-visible { display: grid; }
@@ -188,7 +188,7 @@
     .stack-gap-sm { margin-bottom: 14px; }
     .push-end { margin-left: auto; }
 
-    /* ── Service cards ── */
+    /* -- Service cards -- */
     .service-cards { grid-column: 1/-1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .svc-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; transition: border-color 0.3s; }
     .svc-card.online { border-color: rgba(61,230,139,0.25); }
@@ -218,7 +218,7 @@
     .scan-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); font-size: 10px; color: var(--muted2); }
     .scan-pill-label { color: var(--text); font-weight: 700; }
 
-    /* ── Overview panel ── */
+    /* -- Overview panel -- */
     .overview-rows { display: flex; flex-direction: column; gap: 7px; }
     .ov-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; background: var(--surface); border-radius: 7px; border: 1px solid var(--border); font-size: 12px; }
     .ov-label { color: var(--muted2); }
@@ -227,7 +227,7 @@
     .ov-yellow { color: var(--yellow); }
     .ov-accent { color: var(--accent); }
 
-    /* ── Daily limit bar ── */
+    /* -- Daily limit bar -- */
     .limit-bar-wrap { padding: 14px 18px 10px; }
     .limit-bar-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 11px; }
     .limit-bar-label { color: var(--muted2); text-transform: uppercase; letter-spacing: 1px; font-size: 10px; }
@@ -236,7 +236,7 @@
     .limit-bar-fill  { height: 100%; width: 0%; border-radius: 4px; background: var(--green); transition: width 0.5s, background 0.3s; }
     .limit-bar-hint  { font-size: 10px; color: var(--muted); }
 
-    /* ── Log ── */
+    /* -- Log -- */
     .log-card { display: flex; flex-direction: column; }
     .log-scroll { flex: 1; max-height: 320px; overflow-y: auto; padding: 6px 16px 10px; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
     .log-empty { padding: 36px 0; text-align: center; color: var(--muted); font-size: 12px; }
@@ -256,7 +256,7 @@
     .log-event-top { display: flex; gap: 8px; color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 10px; margin-bottom: 6px; }
     .log-event-msg { font-size: 13px; color: var(--text); line-height: 1.4; word-break: break-word; }
 
-    /* ── Dashboard split (Preview D parity) ── */
+    /* -- Dashboard split (Preview D parity) -- */
     .dash-split {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 300px;
@@ -282,7 +282,7 @@
     #page-dashboard .log-card .card-header { border-bottom: 1px solid var(--border); }
     #page-dashboard .log-scroll { max-height: none; height: 100%; padding-bottom: 14px; }
 
-    /* ── Settings ── */
+    /* -- Settings -- */
     .settings-card { display: flex; flex-direction: column; }
     .tabs-row { display: flex; padding: 0 16px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg2) 92%, transparent); }
     .tab-btn { padding: 11px 14px; font-size: 12px; color: var(--muted2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
@@ -362,7 +362,7 @@
     .form-actions-wrap { flex-wrap: wrap; gap: 8px; }
     .form-msg-align { align-self: center; }
 
-    /* ── History page ── */
+    /* -- History page -- */
     .content-single { grid-template-columns: 1fr; }
     .content-history { grid-template-columns: 1fr; align-content: start; gap: 10px; }
     .content-stats { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
@@ -389,15 +389,15 @@
     .hist-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .hist-status { font-size: 10px; }
 
-    /* ── Log full page ── */
+    /* -- Log full page -- */
     #page-log .content { grid-template-columns: 1fr; }
     #page-history .content { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
 
-    /* ── Scrollbar ── */
+    /* -- Scrollbar -- */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
-    /* ── Stats Page ── */
+    /* -- Stats Page -- */
     .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:16px; }
     .stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:18px; padding:16px; }
     .stat-card-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted2); margin-bottom:6px; }
@@ -434,7 +434,7 @@
     .log-card-tall { min-height: 500px; }
     .log-scroll-tall { max-height: 600px; }
     .card-body-bottom-tight { padding-bottom: 8px; }
-    /* ── Responsive ── */
+    /* -- Responsive -- */
     @media (max-width: 1100px) {
       .sidebar { display: none; }
       .layout { min-height: calc(100vh - 28px); }
@@ -506,12 +506,12 @@
 <div class="ambient ambient-2"></div>
 
 <div class="layout">
-  <!-- ══ SIDEBAR ══ -->
+  <!-- -- SIDEBAR -- -->
   <aside class="sidebar">
     <div class="logo-wrap">
       <div class="logo">
         <div class="logo-mark">
-          <img src="{{ url_for('static', filename='logo.png') }}" alt="MediaHunter logo">
+          <img src="/static/logo.png" alt="MediaHunter logo">
         </div>
         <div>
           <div class="logo-name">Media<span>Hunter</span></div>
@@ -521,15 +521,15 @@
     </div>
 
     <nav class="nav">
-      <div class="nav-item active" onclick="showPage('dashboard')" data-page="dashboard"><span class="nav-icon">◉</span><span class="nav-label">Dashboard</span></div>
-      <div class="nav-item" onclick="showPage('settings')" data-page="settings"><span class="nav-icon">⚙</span><span class="nav-label">Settings</span></div>
-      <div class="nav-item" onclick="showPage('history')" data-page="history"><span class="nav-icon">🗄</span><span class="nav-label">History</span></div>
-      <div class="nav-item" onclick="showPage('log')" data-page="log"><span class="nav-icon">≡</span><span class="nav-label">Activity Log</span><span class="nav-badge" id="logBadge">0</span></div>
-      <div class="nav-item" onclick="showPage('stats')" data-page="stats"><span class="nav-icon">📊</span><span class="nav-label">Statistics</span></div>
+      <div class="nav-item active" onclick="showPage('dashboard')" data-page="dashboard"><span class="nav-icon">?</span><span class="nav-label">Dashboard</span></div>
+      <div class="nav-item" onclick="showPage('settings')" data-page="settings"><span class="nav-icon">?</span><span class="nav-label">Settings</span></div>
+      <div class="nav-item" onclick="showPage('history')" data-page="history"><span class="nav-icon">??</span><span class="nav-label">History</span></div>
+      <div class="nav-item" onclick="showPage('log')" data-page="log"><span class="nav-icon">=</span><span class="nav-label">Activity Log</span><span class="nav-badge" id="logBadge">0</span></div>
+      <div class="nav-item" onclick="showPage('stats')" data-page="stats"><span class="nav-icon">??</span><span class="nav-label">Statistics</span></div>
       <a href="https://github.com/FugginOld/MediaHunter" target="_blank" rel="noopener noreferrer" class="sidebar-link">
         <div class="nav-item nav-item-external">
-          <span class="nav-icon">⑇</span><span class="nav-label nav-label-small">GitHub</span>
-          <span class="nav-external-icon">↗</span>
+          <span class="nav-icon">?</span><span class="nav-label nav-label-small">GitHub</span>
+          <span class="nav-external-icon">?</span>
         </div>
       </a>
     </nav>
@@ -563,52 +563,41 @@
           </div>
         </button>
       </div>
-      <button class="btn sidebar-reset-btn" onclick="resetSetup()" data-i18n="btn_reset_setup">⚙ Reset setup</button>
-      {% if auth_enabled %}
-      <form class="logout-form" action="/logout" method="post">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="btn logout-btn" type="submit">⇦ Logout</button>
-      </form>
-      {% endif %}
+      <button class="btn sidebar-reset-btn" onclick="resetSetup()" data-i18n="btn_reset_setup">? Reset setup</button>
+      
       <div class="version-tag"><a href="https://github.com/FugginOld/MediaHunter" target="_blank" rel="noopener noreferrer" class="sidebar-link"><span class="version-badge">v1.0 Beta</span></a></div>
     </div>
   </aside>
 
-  <!-- ══ MAIN ══ -->
+  <!-- -- MAIN -- -->
   <div class="main">
-    {% if default_pw %}
-    <div class="pw-warn" id="pw-warn-bar">
-      <span>⚠</span>
-      <span>Default password <code>change-me</code> is in use — set <code>MEDIAHUNTER_PASSWORD</code> to a strong secret before exposing this instance to a network.</span>
-      <button class="pw-warn-close" onclick="this.closest('.pw-warn').style.display='none'" aria-label="Dismiss">✕</button>
-    </div>
-    {% endif %}
+    
     <div class="topbar">
       <div class="page-title" id="pageTitle">Dashboard</div>
       <div class="dry-tag" id="dryTag">DRY RUN</div>
       <div class="pill server-time-pill" id="server-time-pill">
-        <span id="server-time">—</span> <span id="server-tz" class="server-tz"></span>
+        <span id="server-time">�</span> <span id="server-tz" class="server-tz"></span>
       </div>
-      <div class="pill"><div class="pill-dot" id="statusDot"></div><span id="statusLabel">—</span></div>
+      <div class="pill"><div class="pill-dot" id="statusDot"></div><span id="statusLabel">�</span></div>
     </div>
     <div class="controls-bar">
-      <button class="btn btn-start" onclick="control('start')">▶ <span id="lbl-start">Start</span></button>
-      <button class="btn btn-stop"  onclick="control('stop')">■ <span id="lbl-stop">Stop</span></button>
-      <button class="btn btn-now"   onclick="control('run_now')">⚡ <span id="lbl-now">Run Now</span></button>
-      <button class="btn" onclick="triggerInitialQueueScan()">🗂 Initial DB Scan</button>
+      <button class="btn btn-start" onclick="control('start')">? <span id="lbl-start">Start</span></button>
+      <button class="btn btn-stop"  onclick="control('stop')">� <span id="lbl-stop">Stop</span></button>
+      <button class="btn btn-now"   onclick="control('run_now')">? <span id="lbl-now">Run Now</span></button>
+      <button class="btn" onclick="promptInitialQueueScan()">?? Initial DB Scan</button>
       <div class="meta-strip">
-        <span id="lbl-cycle">Cycle</span> <b id="cycleCount">0</b> &nbsp;·&nbsp;
-        <span id="lbl-total">Total</span> <b id="totalSearches">0</b> &nbsp;·&nbsp;
-        <span id="lbl-next">Next</span> <b id="nextRun">—</b> &nbsp;·&nbsp;
-        <span id="lbl-last">Last</span> <b id="lastRun">—</b>
+        <span id="lbl-cycle">Cycle</span> <b id="cycleCount">0</b> &nbsp;�&nbsp;
+        <span id="lbl-total">Total</span> <b id="totalSearches">0</b> &nbsp;�&nbsp;
+        <span id="lbl-next">Next</span> <b id="nextRun">�</b> &nbsp;�&nbsp;
+        <span id="lbl-last">Last</span> <b id="lastRun">�</b>
       </div>
     </div>
 
-    <!-- ══ DASHBOARD ══ -->
+    <!-- -- DASHBOARD -- -->
     <div id="page-dashboard" class="content content-page content-dashboard page-visible">
       <div class="dash-split">
         <div class="dash-left">
-          <!-- Dynamic instance cards — filled by renderInstanceCards() -->
+          <!-- Dynamic instance cards � filled by renderInstanceCards() -->
           <div id="instance-cards" class="service-cards">
             <div class="empty-state empty-state-full">Loading instances...</div>
           </div>
@@ -622,23 +611,23 @@
             <div class="limit-bar-wrap">
               <div class="limit-bar-header">
                 <span class="limit-bar-label" id="daily-limit-label">Daily limit</span>
-                <span class="limit-bar-count" id="daily-counter">0 / —</span>
+                <span class="limit-bar-count" id="daily-counter">0 / �</span>
               </div>
               <div class="limit-bar-track"><div class="limit-bar-fill" id="daily-bar"></div></div>
-              <div class="limit-bar-hint" id="daily-hint">—</div>
+              <div class="limit-bar-hint" id="daily-hint">�</div>
             </div>
             <div class="card-body card-body-tight-top">
               <div class="overview-rows">
-                <div class="ov-row"><span class="ov-label" data-i18n="ov_missing_lbl">Missing interval</span><span class="ov-val" id="ov-missing">—</span></div>
-                <div class="ov-row"><span class="ov-label" data-i18n="ov_max_lbl">Max per run</span><span class="ov-val" id="ov-max">—</span></div>
-                <div class="ov-row"><span class="ov-label" data-i18n="ov_cooldown_lbl">Cooldown</span><span class="ov-val ov-blue" id="ov-cooldown">—</span></div>
+                <div class="ov-row"><span class="ov-label" data-i18n="ov_missing_lbl">Missing interval</span><span class="ov-val" id="ov-missing">�</span></div>
+                <div class="ov-row"><span class="ov-label" data-i18n="ov_max_lbl">Max per run</span><span class="ov-val" id="ov-max">�</span></div>
+                <div class="ov-row"><span class="ov-label" data-i18n="ov_cooldown_lbl">Cooldown</span><span class="ov-val ov-blue" id="ov-cooldown">�</span></div>
                 <div class="ov-row"><span class="ov-label" data-i18n="ov_db_lbl">DB entries</span><span class="ov-val ov-yellow" id="ov-db">0</span></div>
-                <div class="ov-row"><span class="ov-label" data-i18n="ov_dry_lbl">Dry Run</span><span class="ov-val" id="ov-dry">—</span></div>
+                <div class="ov-row"><span class="ov-label" data-i18n="ov_dry_lbl">Dry Run</span><span class="ov-val" id="ov-dry">�</span></div>
                 <div class="ov-row"><span class="ov-label" data-i18n="ov_total_lbl">Total searches</span><span class="ov-val ov-accent" id="ov-total">0</span></div>
               </div>
               <div class="button-row">
-                <button class="btn btn-now btn-fill btn-compact" onclick="showPage('history')">📋 History</button>
-                <button class="btn btn-stop btn-fill btn-compact" onclick="confirmClear('all')">🗑 Reset DB</button>
+                <button class="btn btn-now btn-fill btn-compact" onclick="showPage('history')">?? History</button>
+                <button class="btn btn-stop btn-fill btn-compact" onclick="confirmClear('all')">?? Reset DB</button>
               </div>
             </div>
           </div>
@@ -654,7 +643,7 @@
         </div>
     </div>
 
-    <!-- ══ SETTINGS ══ -->
+    <!-- -- SETTINGS -- -->
     <div id="page-settings" class="content content-page content-settings">
       <div class="card settings-card">
         <div class="card-header">
@@ -792,7 +781,7 @@
           </div>
         </div>
 
-        <!-- ── Discord Tab ── -->
+        <!-- -- Discord Tab -- -->
         <div class="tab-pane" id="tab-discord">
           <div class="settings-section">
             <div class="settings-section-head">Discord notifications</div>
@@ -804,10 +793,10 @@
             </svg>
             <div class="discord-hero-copy">
               <div class="discord-hero-title" id="dc-hd-title">Discord Notifications</div>
-              <div class="discord-hero-sub" id="dc-hd-sub">Server → Settings → Integrations → Webhooks</div>
+              <div class="discord-hero-sub" id="dc-hd-sub">Server ? Settings ? Integrations ? Webhooks</div>
             </div>
             <div class="discord-hero-actions">
-              <span id="dc-configured-badge" class="configured-badge">✓ Configured</span>
+              <span id="dc-configured-badge" class="configured-badge">? Configured</span>
               <div class="toggle" id="tog-dc-enabled" onclick="toggleDc('enabled')"></div>
               <span class="toggle-label" id="lab-dc-enabled">Off</span>
             </div>
@@ -826,7 +815,7 @@
 
             <div class="dc-event-card">
               <div class="dc-event-head">
-                <span class="dc-event-title dc-event-title-green" id="dc-ev-missing-lbl">🔍 Missing searched</span>
+                <span class="dc-event-title dc-event-title-green" id="dc-ev-missing-lbl">?? Missing searched</span>
                 <div class="toggle" id="tog-dc-missing" onclick="toggleDc('missing')"></div>
               </div>
               <div class="dc-event-sub" id="dc-ev-missing-sub">Movie/series searched</div>
@@ -834,7 +823,7 @@
 
             <div class="dc-event-card">
               <div class="dc-event-head">
-                <span class="dc-event-title dc-event-title-yellow" id="dc-ev-upgrade-lbl">⬆ Upgrade searched</span>
+                <span class="dc-event-title dc-event-title-yellow" id="dc-ev-upgrade-lbl">? Upgrade searched</span>
                 <div class="toggle" id="tog-dc-upgrade" onclick="toggleDc('upgrade')"></div>
               </div>
               <div class="dc-event-sub" id="dc-ev-upgrade-sub">Quality upgrade triggered</div>
@@ -842,7 +831,7 @@
 
             <div class="dc-event-card">
               <div class="dc-event-head">
-                <span class="dc-event-title dc-event-title-blue" id="dc-ev-cooldown-lbl">⏳ Cooldown expired</span>
+                <span class="dc-event-title dc-event-title-blue" id="dc-ev-cooldown-lbl">? Cooldown expired</span>
                 <div class="toggle" id="tog-dc-cooldown" onclick="toggleDc('cooldown')"></div>
               </div>
               <div class="dc-event-sub" id="dc-ev-cooldown-sub">Items available for search again</div>
@@ -850,7 +839,7 @@
 
             <div class="dc-event-card">
               <div class="dc-event-head">
-                <span class="dc-event-title dc-event-title-red" id="dc-ev-limit-lbl">🚫 Daily limit</span>
+                <span class="dc-event-title dc-event-title-red" id="dc-ev-limit-lbl">?? Daily limit</span>
                 <div class="toggle" id="tog-dc-limit" onclick="toggleDc('limit')"></div>
               </div>
               <div class="dc-event-sub" id="dc-ev-limit-sub">Daily search limit reached</div>
@@ -858,7 +847,7 @@
 
             <div class="dc-event-card">
               <div class="dc-event-head">
-                <span class="dc-event-title dc-event-title-muted" id="dc-ev-offline-lbl">📡 Instance offline</span>
+                <span class="dc-event-title dc-event-title-muted" id="dc-ev-offline-lbl">?? Instance offline</span>
                 <div class="toggle" id="tog-dc-offline" onclick="toggleDc('offline')"></div>
               </div>
               <div class="dc-event-sub" id="dc-ev-offline-sub">Instance not reachable</div>
@@ -866,7 +855,7 @@
 
             <div class="dc-event-card dc-event-card-accent">
               <div class="dc-event-head">
-                <span class="dc-event-title dc-event-title-accent" id="dc-ev-stats-lbl">📊 Statistics report</span>
+                <span class="dc-event-title dc-event-title-accent" id="dc-ev-stats-lbl">?? Statistics report</span>
                 <div class="toggle" id="tog-dc-stats" onclick="toggleDc('stats')"></div>
               </div>
               <div class="dc-event-sub" id="dc-ev-stats-sub">Periodic status report</div>
@@ -891,8 +880,8 @@
           <!-- Actions -->
           <div class="form-actions form-actions-wrap">
             <button class="btn btn-start" onclick="saveDc()" id="dc-btn-save">Save</button>
-            <button class="btn btn-now" onclick="testDc()" id="dc-btn-test">🔔 Send test</button>
-            <button class="btn btn-accent-outline" onclick="statsNow()" id="dc-btn-stats">📊 Send statistics now</button>
+            <button class="btn btn-now" onclick="testDc()" id="dc-btn-test">?? Send test</button>
+            <button class="btn btn-accent-outline" onclick="statsNow()" id="dc-btn-stats">?? Send statistics now</button>
             <span id="dc-msg" class="form-msg form-msg-align"></span>
           </div>
             </div>
@@ -901,7 +890,7 @@
       </div>
     </div>
 
-    <!-- ══ HISTORY ══ -->
+    <!-- -- HISTORY -- -->
     <div id="page-history" class="content content-page content-history">
       <div class="card">
         <div class="card-header card-header-wrap">
@@ -910,12 +899,12 @@
             <span class="subtle-copy" data-i18n="hist_hint">Items on cooldown are not re-searched</span>
           </div>
           <div class="hist-controls hist-controls-push">
-            <button class="btn btn-now" onclick="loadHistory()" data-i18n="btn_refresh">↺ Refresh</button>
-            <button class="btn btn-stop" onclick="confirmClear('all')" data-i18n="btn_clear_all">🗑 Clear all</button>
-            <button class="btn btn-blue-outline" onclick="confirmClear('sonarr')">🗑 Sonarr</button>
-            <button class="btn btn-accent-outline" onclick="confirmClear('radarr')">🗑 Radarr</button>
+            <button class="btn btn-now" onclick="loadHistory()" data-i18n="btn_refresh">? Refresh</button>
+            <button class="btn btn-stop" onclick="confirmClear('all')" data-i18n="btn_clear_all">?? Clear all</button>
+            <button class="btn btn-blue-outline" onclick="confirmClear('sonarr')">?? Sonarr</button>
+            <button class="btn btn-accent-outline" onclick="confirmClear('radarr')">?? Radarr</button>
             <span class="count-label" data-i18n="lbl_entries">Entries:</span>
-            <b id="hist-count" class="count-value">—</b>
+            <b id="hist-count" class="count-value">�</b>
           </div>
         </div>
         <div class="hist-filters">
@@ -927,11 +916,11 @@
             <option value="">All status</option><option value="1">On cooldown</option><option value="0">Available</option>
           </select>
         </div>
-        <div class="hist-table" id="hist-table"><div class="log-empty">Loading…</div></div>
+        <div class="hist-table" id="hist-table"><div class="log-empty">Loading�</div></div>
       </div>
     </div>
 
-    <!-- ══ LOG ══ -->
+    <!-- -- LOG -- -->
     <div id="page-log" class="content content-page content-single">
       <div class="card log-card log-card-tall">
         <div class="card-header">
@@ -942,7 +931,7 @@
         <div class="log-scroll log-scroll-tall" id="logScrollFull"><div class="log-empty">Waiting for activity...</div></div>
       </div>
     </div>
-  <!-- ══ STATS PAGE ══ -->
+  <!-- -- STATS PAGE -- -->
   <div id="page-stats" class="content content-page content-stats">
 
     <div class="card stats-card-full">
@@ -954,22 +943,22 @@
         <div class="stats-grid stats-grid-tight">
           <div class="stat-card">
             <div class="stat-card-label" id="st-lbl-total">Total searches</div>
-            <div class="stat-card-value" id="st-total">—</div>
+            <div class="stat-card-value" id="st-total">�</div>
             <div class="stat-card-sub" id="st-sub-total">in SQLite DB</div>
           </div>
           <div class="stat-card">
             <div class="stat-card-label" id="st-lbl-today">Today</div>
-            <div class="stat-card-value stat-value-accent" id="st-today">—</div>
-            <div class="stat-card-sub" id="st-today-sub">of — limit</div>
+            <div class="stat-card-value stat-value-accent" id="st-today">�</div>
+            <div class="stat-card-sub" id="st-today-sub">of � limit</div>
           </div>
           <div class="stat-card">
             <div class="stat-card-label" id="st-lbl-cycles">Cycles total</div>
-            <div class="stat-card-value" id="st-cycles">—</div>
+            <div class="stat-card-value" id="st-cycles">�</div>
             <div class="stat-card-sub" id="st-sub-cycles">since start</div>
           </div>
           <div class="stat-card">
             <div class="stat-card-label" id="st-lbl-instances">Active instances</div>
-            <div class="stat-card-value" id="st-instances">—</div>
+            <div class="stat-card-value" id="st-instances">�</div>
             <div class="stat-card-sub" id="st-sub-instances">Sonarr + Radarr</div>
           </div>
         </div>
@@ -1028,7 +1017,7 @@
     <div class="chart-card timeline-card">
       <div class="chart-card-hd">
         <div class="chart-card-title" id="st-chart-timeline">Activity last 24h</div>
-        <div class="chart-sub" id="st-timeline-sub">—</div>
+        <div class="chart-sub" id="st-timeline-sub">�</div>
       </div>
       <div class="chart-body">
         <canvas id="timeline-canvas" width="800" height="80" class="timeline-canvas"></canvas>
@@ -1041,20 +1030,20 @@
 </div><!-- /layout -->
 
 <script>
-// ══ State ══
+// -- State --
 let appState = {}, historyData = [], toggleStates = {dry:false,sonarr:true,radarr:true}, toggleStates2 = {upgrades:true};
 let _syncingFromServer = false;
 let dcStates = {enabled:false,missing:true,upgrade:true,cooldown:true,limit:true,offline:true};
-let currentLang = 'en', currentTheme = '{{ theme|default("system") }}', lastLogCount = 0;
+let currentLang = 'en', currentTheme = 'plex-inspired', lastLogCount = 0;
 
-// ══ i18n ══
+// -- i18n --
 const T = {
   en: { dashboard:'Dashboard', settings:'Settings', history:'History', log:'Activity Log',
         running:'Running', stopped:'Stopped', online:'Online', offline:'Offline', disabled:'Disabled',
         unlimited:'Unlimited', remaining:'remaining', resets:'Resets midnight UTC',
-        on:'On', off:'Off', waiting:'Waiting for activity...', no_entries:'No entries', loading:'Loading…',
+        on:'On', off:'Off', waiting:'Waiting for activity...', no_entries:'No entries', loading:'Loading�',
         cycle:'Cycle', total:'Total', next:'Next', last:'Last',
-        start:'Start', stop:'Stop', now:'Run Now', save:'Save', connected:'✓ Connected', failed:'✗ Failed',
+        start:'Start', stop:'Stop', now:'Run Now', save:'Save', connected:'? Connected', failed:'? Failed',
         stats:'Statistics', log:'Activity Log', history:'History', settings:'Settings',
         tab_general:'General', tab_instances:'Instances', tab_discord:'Discord',
         lbl_missing:'Missing interval (s)', lbl_upgrade:'Upgrade interval (s)',
@@ -1065,11 +1054,11 @@ const T = {
         lbl_interval_adv:'Interval & jitter', lbl_system:'System', lbl_timezone:'Timezone',
         lbl_manage_instances:'Manage instances', btn_add_instance:'+ Add instance',
         opt_episode:'Episode (default)', opt_season:'Season', opt_series:'Full series',
-        hint_jitter:'0 = no jitter. Random 0–N sec added to interval.',
+        hint_jitter:'0 = no jitter. Random 0�N sec added to interval.',
         hint_cooldown:'Days before re-searching same item.',
         hint_daily:'Total per day across all instances.',
         lbl_dryrun:'Dry Run', btn_save:'Save', lbl_new_instance:'New instance',
-        btn_refresh:'↺ Refresh', btn_clear_all:'🗑 Clear all',
+        btn_refresh:'? Refresh', btn_clear_all:'?? Clear all',
         lbl_entries:'Entries:', hist_title:'Search history (SQLite)',
         hist_hint:'Items on cooldown are not re-searched',
         btn_clear:'Clear',
@@ -1079,8 +1068,8 @@ const T = {
         st_chart_timeline:'Activity last 24h',
         hint_missing:'Seconds between hunt cycles. Min. 900.',
         hint_max:'Per cycle, per instance.',
-        hint_cooldown_range:'Default: 7 days. Range: 1–365 days.',
-        btn_reset_setup:'⚙ Reset setup',
+        hint_cooldown_range:'Default: 7 days. Range: 1�365 days.',
+        btn_reset_setup:'? Reset setup',
   }
 };
 const t = k => T[currentLang]?.[k] || k;
@@ -1096,7 +1085,7 @@ function normalizeTheme(theme) {
   return aliases[theme] || theme || 'system';
 }
 
-// ══ Theme ══
+// -- Theme --
 function setTheme(theme) {
   currentTheme = normalizeTheme(theme);
   document.documentElement.setAttribute('data-theme', currentTheme);
@@ -1149,7 +1138,7 @@ function applyLang() {
 
   // History placeholder
   const hq = document.getElementById('hist-q');
-  if (hq) hq.placeholder = 'Search…';
+  if (hq) hq.placeholder = 'Search�';
   const newName = document.getElementById('new-inst-name');
   if (newName) newName.placeholder = 'e.g. Sonarr 4K';
   const newKey = document.getElementById('new-inst-key');
@@ -1177,7 +1166,7 @@ function applyLang() {
   const newInstKeyLabel = document.getElementById('new-inst-key-label');
   if (newInstKeyLabel) newInstKeyLabel.textContent = 'API Key';
 
-  // Stats — all labels, KPI cards, chart titles, subs
+  // Stats � all labels, KPI cards, chart titles, subs
   const allStatsIds = {
     'st-lbl-total':      'Total searches',
     'st-sub-total':      'in SQLite DB',
@@ -1205,7 +1194,7 @@ function applyLang() {
   }
 }
 
-// ══ Pages ══
+// -- Pages --
 function showPage(name) {
   ['dashboard','settings','history','log','stats'].forEach(p => {
     const el = document.getElementById(`page-${p}`);
@@ -1217,20 +1206,19 @@ function showPage(name) {
   document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     el.className = 'nav-item' + (el.dataset.page === name ? ' active' : '');
   });
-  if (name === 'log' || name === 'history' || name === 'stats') fetchState();
   if (name === 'log') { document.getElementById('logBadge').textContent='0'; document.getElementById('logBadge').className='nav-badge'; }
   if (name === 'history') loadHistory();
   if (name === 'stats') loadStats();
 }
 
-// ══ Tabs ══
+// -- Tabs --
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.className='tab-btn'+(['general','instances','discord'][i]===name?' active':''));
   document.querySelectorAll('.tab-pane').forEach(p => p.className='tab-pane'+(p.id===`tab-${name}`?' active':''));
   if (name==='instances') renderSettingsInstances();
 }
 
-// ══ Toggles ══
+// -- Toggles --
 function toggleCfg(key, persist = false) {
   toggleStates[key] = !toggleStates[key];
   const tog = document.getElementById(`tog-${key}`);
@@ -1240,7 +1228,7 @@ function toggleCfg(key, persist = false) {
   if (persist && !_syncingFromServer) saveConfig();
 }
 
-// ══ Format helpers ══
+// -- Format helpers --
 function fmtSec(s) { return s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s/60)}min` : `${Math.floor(s/3600)}h`; }
 function fmtDays(d) { return d===1 ? '1 day' : `${d} days`; }
 function escHtml(v) {
@@ -1273,7 +1261,7 @@ function syncNewInstUrlHint() {
   urlEl.placeholder = nextDefault;
 }
 
-// ══ Fetch & Update ══
+// -- Fetch & Update --
 async function fetchState() {
   try {
     const r = await fetch('/api/state');
@@ -1297,8 +1285,8 @@ function updateUI() {
   if (tzEl && s.server_tz)   tzEl.textContent = s.server_tz;
   document.getElementById('cycleCount').textContent    = s.cycle_count || 0;
   document.getElementById('totalSearches').textContent = s.total_searches || 0;
-  document.getElementById('nextRun').textContent = s.next_run || '—';
-  document.getElementById('lastRun').textContent = s.last_run || '—';
+  document.getElementById('nextRun').textContent = s.next_run || '�';
+  document.getElementById('lastRun').textContent = s.last_run || '�';
 
   // Daily bar
   const limit = s.daily_limit || 0, count = s.daily_count || 0;
@@ -1307,13 +1295,13 @@ function updateUI() {
   const hint = document.getElementById('daily-hint');
   if (bar && ctr && hint) {
     if (limit === 0) {
-      ctr.textContent = `${count} / ∞`; bar.style.width='0%'; bar.style.background='var(--blue)';
+      ctr.textContent = `${count} / 8`; bar.style.width='0%'; bar.style.background='var(--blue)';
       hint.textContent = t('unlimited');
     } else {
       const pct = Math.min(100, Math.round(count/limit*100));
       ctr.textContent = `${count} / ${limit}`; bar.style.width = pct+'%';
       bar.style.background = pct>=100 ? 'var(--red)' : pct>=80 ? 'var(--yellow)' : 'var(--green)';
-      hint.textContent = `${Math.max(0,limit-count)} ${t('remaining')} · ${t('resets')}`;
+      hint.textContent = `${Math.max(0,limit-count)} ${t('remaining')} � ${t('resets')}`;
     }
   }
 
@@ -1414,7 +1402,7 @@ function renderInstanceCards(instances, instStats) {
   const grid = document.getElementById('instance-cards');
   if (!grid) return;
   if (!instances.length) {
-  grid.innerHTML = `<div class="empty-state empty-state-full">No instances configured — <a href="/setup" class="ov-accent">Setup</a></div>`;
+  grid.innerHTML = `<div class="empty-state empty-state-full">No instances configured � <a href="/setup" class="ov-accent">Setup</a></div>`;
     return;
   }
   grid.innerHTML = instances.map(inst => {
@@ -1422,11 +1410,7 @@ function renderInstanceCards(instances, instStats) {
     const isSonarr = inst.type === 'sonarr';
     const st = stats.status || 'unknown';
     const skipped = (stats.skipped_cooldown||0)+(stats.skipped_daily||0);
-    const versionLabel = (stats.version && stats.version !== '?') ? `v${escHtml(stats.version)}` : '';
-    const statusDetail = stats.status_detail ? escHtml(stats.status_detail) : '';
-    const metaLabel = st === 'online'
-      ? (versionLabel || '—')
-      : (statusDetail || 'Unavailable');
+    const ver = (stats.version && stats.version!=='?') ? `v${stats.version}` : '�';
     const sonarrScanShows = stats.scan_shows_total || 0;
     const sonarrScanEpisodes = stats.scan_episodes_total || 0;
     const radarrScanMovies = stats.scan_movies_total || 0;
@@ -1464,10 +1448,10 @@ function renderInstanceCards(instances, instStats) {
         <div class="svc-inner">
           <div class="svc-top">
             <div class="svc-name-wrap">
-              <div class="svc-icon">${isSonarr?'📺':'🎬'}</div>
+              <div class="svc-icon">${isSonarr?'??':'??'}</div>
               <div class="svc-name-meta">
-                <div class="svc-name">${escHtml(inst.name || '')}</div>
-                <div class="svc-ver" title="${metaLabel}">${metaLabel}</div>
+                <div class="svc-name">${inst.name}</div>
+                <div class="svc-ver">${ver}</div>
               </div>
             </div>
             <div class="${chipClass}">${chipLabel}</div>
@@ -1485,10 +1469,7 @@ function renderInstanceCards(instances, instStats) {
 function renderLog(entries, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  if (!entries?.length) {
-    el.innerHTML = `<div class="log-empty">No activity yet.<br><span class="subtle-copy">Run Initial DB Scan or Start hunting to generate events.</span></div>`;
-    return;
-  }
+  if (!entries?.length) { el.innerHTML = `<div class="log-empty">${t('waiting')}</div>`; return; }
   el.innerHTML = entries.map(e => {
     const svc = e.service.toLowerCase().replace(/[^a-z]/g,'');
     const svcLabel = (['sonarr','radarr','system'].find(s => svc.includes(s)) || 'system').toUpperCase();
@@ -1507,42 +1488,31 @@ function clearLog() {
   });
 }
 
-// ══ API ══
+// -- API --
 async function control(action) {
   await fetch('/api/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});
   setTimeout(fetchState, 400);
 }
 
 async function triggerInitialQueueScan() {
-  try {
-    const r = await fetch('/api/queue/scan', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type':'application/json',
-        'X-CSRF-Token': CSRF_TOKEN,
-      },
-      body: '{}'
-    });
-    const d = await r.json();
-    if (d.ok) {
-      alert('Initial queue scan started. Wait for scan completion in the activity log, then click Start to begin hunting.');
-      fetchState();
-      setTimeout(fetchState, 500);
-      setTimeout(fetchState, 2000);
-      setTimeout(fetchState, 5000);
-      if (document.getElementById('page-history')?.classList.contains('page-visible')) {
-        loadHistory();
-      }
-      return true;
-    }
-    alert(`Scan could not be started: ${d.error || 'Unknown error'}`);
-    return false;
-  } catch (err) {
-    const msg = err && typeof err === 'object' && 'message' in err ? err.message : String(err || 'Unknown error');
-    alert(`Scan request failed: ${msg}`);
-    return false;
+  const r = await fetch('/api/queue/scan', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: '{}'
+  });
+  const d = await r.json();
+  if (d.ok) {
+    alert('Initial queue scan started. Wait for scan completion in the activity log, then click Start to begin hunting.');
+    fetchState();
+    return true;
   }
+  alert(`Scan could not be started: ${d.error || 'Unknown error'}`);
+  return false;
+}
+
+async function promptInitialQueueScan() {
+  const yes = confirm('Scan Sonarr/Radarr now to build the initial MediaHunter queue database?\n\nChoose Yes to scan now. Choose No to skip for now and run it later from this button.');
+  if (yes) await triggerInitialQueueScan();
 }
 
 async function saveConfig() {
@@ -1570,7 +1540,7 @@ async function saveConfig() {
     const btn = document.querySelector('button[onclick="saveConfig()"]');
     if (btn) {
       const orig = btn.textContent;
-      btn.textContent = '✓ Saved';
+      btn.textContent = '? Saved';
       btn.style.background = 'var(--green)'; btn.style.color = '#fff';
       setTimeout(() => { btn.textContent = orig; btn.style.background = ''; btn.style.color = ''; }, 2000);
     }
@@ -1578,7 +1548,7 @@ async function saveConfig() {
     const btn = document.querySelector('button[onclick="saveConfig()"]');
     if (btn) {
       const orig = btn.textContent;
-      btn.textContent = '✗ Error';
+      btn.textContent = '? Error';
       btn.style.background = 'var(--red)'; btn.style.color = '#fff';
       setTimeout(() => { btn.textContent = orig; btn.style.background = ''; btn.style.color = ''; }, 2500);
     }
@@ -1587,16 +1557,16 @@ async function saveConfig() {
 
 async function pingService(svc) {
   const el = document.getElementById(`ping-${svc}`);
-  el.className='ping-result testing'; el.style.display='block'; el.textContent='…';
+  el.className='ping-result testing'; el.style.display='block'; el.textContent='�';
   try {
     const r = await fetch(`/api/ping/${svc}`);
     const d = await r.json();
     el.className = d.ok ? 'ping-result ok' : 'ping-result fail';
-    el.textContent = d.ok ? `${t('connected')} — v${d.version}` : `${t('failed')}: ${d.msg||''}`;
+    el.textContent = d.ok ? `${t('connected')} � v${d.version}` : `${t('failed')}: ${d.msg||''}`;
   } catch { el.className='ping-result fail'; el.textContent=t('failed'); }
 }
 
-// ══ History ══
+// -- History --
 async function loadHistory() {
   document.getElementById('hist-table').innerHTML = `<div class="log-empty">${t('loading')}</div>`;
   try {
@@ -1620,29 +1590,22 @@ function renderHistory() {
     return true;
   });
   const el = document.getElementById('hist-table');
-  if (!filtered.length) {
-    if (!historyData.length) {
-      el.innerHTML = `<div class="log-empty">No search history yet.<br><span class="subtle-copy">Run Initial DB Scan, then press Start to create history entries.</span></div>`;
-    } else {
-      el.innerHTML = `<div class="log-empty">No entries match your filters.</div>`;
-    }
-    return;
-  }
+  if (!filtered.length) { el.innerHTML = `<div class="log-empty">${t('no_entries')}</div>`; return; }
   el.innerHTML = `
     <div class="hist-head">
       <span>Time</span><span>Service</span><span>Type</span><span>Year</span><span>Title</span><span>Status</span><span class="hist-head-center">Tries</span>
     </div>` +
     filtered.map(h => `
     <div class="hist-row">
-      <span class="log-ts">${h.searched_at?.split('T')[1]?.slice(0,5)||'—'}</span>
+      <span class="log-ts">${h.searched_at?.split('T')[1]?.slice(0,5)||'�'}</span>
       <span class="log-svc ${h.service}">${h.service}</span>
       <span class="hist-type">${h.item_type}</span>
-      <span class="hist-year">${h.release_year||'—'}</span>
+      <span class="hist-year">${h.release_year||'�'}</span>
       <span class="hist-title" title="${h.title}">${h.title||h.item_id}</span>
       <span class="hist-status ${h.on_cooldown?'on-cooldown':'off-cooldown'}">
-        ${h.on_cooldown ? `🔒 until ${h.expires_label}` : '✓ Free'}
+        ${h.on_cooldown ? `?? until ${h.expires_label}` : '? Free'}
       </span>
-      <span class="hist-count-badge">${h.search_count||1}×</span>
+      <span class="hist-count-badge">${h.search_count||1}�</span>
     </div>`).join('');
 }
 
@@ -1674,21 +1637,17 @@ function renderSettingsInstances() {
   el.innerHTML = appState.instances.map(inst => {
     const stats = appState.inst_stats?.[inst.id] || {};
     const st  = stats.status || 'unknown';
-    const versionLabel = (stats.version && stats.version !== '?') ? `v${escHtml(stats.version)}` : '';
-    const statusDetail = stats.status_detail ? escHtml(stats.status_detail) : '';
-    const subLabel = st === 'online'
-      ? `${inst.type}${versionLabel ? ` · ${versionLabel}` : ''}`
-      : `${inst.type}${statusDetail ? ` · ${statusDetail}` : ''}`;
+    const ver = (stats.version && stats.version !== '?') ? ` � v${stats.version}` : '';
     const en  = inst.enabled !== false;
-    const ico = inst.type === 'sonarr' ? '📺' : '🎬';
+    const ico = inst.type === 'sonarr' ? '??' : '??';
     const safeName = escHtml(inst.name || '');
     const safeUrl = escHtml(inst.url || '');
     const typeLabel = 'Type';
     const namePlaceholder = inst.type === 'sonarr'
       ? 'e.g. Sonarr 4K'
       : 'e.g. Radarr HD';
-    const saveLabel = '💾 Save';
-    const deleteLabel = '🗑 Delete';
+    const saveLabel = '?? Save';
+    const deleteLabel = '?? Delete';
     return `
     <div class="instance-editor-card ${inst.type}" id="icard-${inst.id}">
       <div class="instance-editor-bar"></div>
@@ -1697,7 +1656,7 @@ function renderSettingsInstances() {
           <div class="instance-editor-icon">${ico}</div>
           <div class="instance-editor-meta">
             <div class="instance-editor-name">${inst.name}</div>
-            <div class="instance-editor-sub">${subLabel}</div>
+            <div class="instance-editor-sub">${inst.type}${ver}</div>
           </div>
           <span class="status-chip instance-editor-status ${st}">${t(st)}</span>
           <div class="toggle instance-editor-toggle ${en?'on':''}" onclick="toggleInst('${inst.id}',${!en})" title="${en ? t('on') : t('off')}"></div>
@@ -1711,8 +1670,8 @@ function renderSettingsInstances() {
           <div class="form-group">
             <label class="form-label">${typeLabel}</label>
             <select class="form-input" id="itype-${inst.id}" onchange="renderSettingsInstances()">
-              <option value="sonarr" ${inst.type==='sonarr'?'selected':''}>📺 Sonarr (Series)</option>
-              <option value="radarr" ${inst.type==='radarr'?'selected':''}>🎬 Radarr (Movies)</option>
+              <option value="sonarr" ${inst.type==='sonarr'?'selected':''}>?? Sonarr (Series)</option>
+              <option value="radarr" ${inst.type==='radarr'?'selected':''}>?? Radarr (Movies)</option>
             </select>
           </div>
           <div class="form-group form-group-span-all">
@@ -1721,12 +1680,12 @@ function renderSettingsInstances() {
           </div>
           <div class="form-group form-group-span-all">
             <label class="form-label" id="inst-key-lbl">API Key</label>
-            <input class="form-input" id="ikey-${inst.id}" type="password" placeholder="••••••••••••••••••••••••••••••">
+            <input class="form-input" id="ikey-${inst.id}" type="password" placeholder="������������������������������">
           </div>
         </div>
 
         <div class="instance-editor-actions">
-          <button class="btn btn-now btn-small" onclick="pingInstSave('${inst.id}')">🔌 Test</button>
+          <button class="btn btn-now btn-small" onclick="pingInstSave('${inst.id}')">?? Test</button>
           <button class="btn btn-start btn-small" onclick="saveInst('${inst.id}')">${saveLabel}</button>
           <div id="isave-msg-${inst.id}" class="instance-editor-msg"></div>
           <button class="btn btn-stop btn-small push-end" onclick="deleteInst('${inst.id}')">${deleteLabel}</button>
@@ -1738,12 +1697,12 @@ function renderSettingsInstances() {
 
 async function pingInstSave(id) {
   const msg = document.getElementById(`isave-msg-${id}`);
-  if (msg) { msg.style.display='block'; msg.style.color='var(--muted2)'; msg.textContent = '⟳ Testing...'; }
+  if (msg) { msg.style.display='block'; msg.style.color='var(--muted2)'; msg.textContent = '? Testing...'; }
   const r = await fetch(`/api/instances/${id}/ping`);
   const d = await r.json();
   if (msg) {
     msg.style.color = d.ok ? 'var(--green)' : 'var(--red)';
-    msg.textContent = d.ok ? `✓ Connected v${d.version}` : `✗ ${d.msg||'Error'}`;
+    msg.textContent = d.ok ? `? Connected v${d.version}` : `? ${d.msg||'Error'}`;
   }
   fetchState();
 }
@@ -1761,7 +1720,7 @@ async function saveInst(id) {
   const msg  = document.getElementById(`isave-msg-${id}`);
 
   if (!name) {
-    if (msg) { msg.style.display='block'; msg.style.color='var(--red)'; msg.textContent = '✗ Name must not be empty'; }
+    if (msg) { msg.style.display='block'; msg.style.color='var(--red)'; msg.textContent = '? Name must not be empty'; }
     return;
   }
 
@@ -1777,7 +1736,7 @@ async function saveInst(id) {
   if (msg) {
     msg.style.display = 'block';
     msg.style.color   = d.ok ? 'var(--green)' : 'var(--red)';
-    msg.textContent   = d.ok ? '✓ Saved' : `✗ ${d.error||'Error'}`;
+    msg.textContent   = d.ok ? '? Saved' : `? ${d.error||'Error'}`;
     if (d.ok) setTimeout(() => { msg.style.display='none'; }, 2500);
   }
   if (d.ok) { fetchState(); setTimeout(renderSettingsInstances, 400); }
@@ -1791,7 +1750,7 @@ async function addInstFromSettings() {
   const msg  = document.getElementById('new-inst-msg');
 
   if (!name || !url || !key) {
-    if (msg) { msg.style.display='block'; msg.style.color='var(--red)'; msg.textContent = '✗ Fill in all fields'; }
+    if (msg) { msg.style.display='block'; msg.style.color='var(--red)'; msg.textContent = '? Fill in all fields'; }
     return;
   }
 
@@ -1804,14 +1763,14 @@ async function addInstFromSettings() {
     msg.style.display = 'block';
     if (d.ok) {
       msg.style.color = 'var(--green)';
-      msg.textContent = '✓ Instance added';
+      msg.textContent = '? Instance added';
       document.getElementById('new-inst-name').value = '';
       syncNewInstUrlHint();
       document.getElementById('new-inst-key').value  = '';
       setTimeout(() => { msg.style.display='none'; }, 2500);
     } else {
       msg.style.color = 'var(--red)';
-      msg.textContent = '✗ ' + (d.errors?.[0] || d.error || 'Error');
+      msg.textContent = '? ' + (d.errors?.[0] || d.error || 'Error');
     }
   }
   if (d.ok) { fetchState(); setTimeout(renderSettingsInstances, 400); }
@@ -1843,22 +1802,8 @@ function toggleCfg2(key) {
   if (lab) lab.textContent = toggleStates2[key] ? t('on') : t('off');
 }
 
-/* ══ Stats ══ */
+/* -- Stats -- */
 let statsCache = {};
-
-function setStatsLoadError(msg) {
-  const note = `<div class="chart-loading">${escHtml(msg || 'Unable to load statistics right now.')}</div>`;
-  const inst = document.getElementById('st-inst-bars');
-  const year = document.getElementById('st-year-bars');
-  const type = document.getElementById('st-type-bars');
-  const legend = document.getElementById('donut-legend');
-  const timelineSub = document.getElementById('st-timeline-sub');
-  if (inst) inst.innerHTML = note;
-  if (year) year.innerHTML = note;
-  if (type) type.innerHTML = note;
-  if (legend) legend.innerHTML = note;
-  if (timelineSub) timelineSub.textContent = 'Unable to load timeline';
-}
 
 async function loadStats() {
   try {
@@ -1870,10 +1815,7 @@ async function loadStats() {
     const state = await stateR.json();
     statsCache = { hist, state };
     renderStats(hist, state);
-  } catch(e) {
-    console.error('Stats load error', e);
-    setStatsLoadError('No statistics available yet. Start a hunt cycle to populate this page.');
-  }
+  } catch(e) { console.error('Stats load error', e); }
 }
 
 function renderStats(hist, state) {
@@ -1979,7 +1921,7 @@ function renderStats(hist, state) {
     </div>`).join('');
   }).catch(()=>{});
 
-  // 24h timeline — bucket by hour using history timestamps
+  // 24h timeline � bucket by hour using history timestamps
   fetch('/api/history').then(r=>r.json()).then(h=>{
     const rows = h.history||[];
     const buckets = new Array(24).fill(0);
@@ -2058,40 +2000,40 @@ function drawTimeline(buckets) {
   });
 }
 
-/* ══ Discord i18n labels ══ */
+/* -- Discord i18n labels -- */
 const DC_LABELS = {
   en: {
     hd_title:         'Discord Notifications',
-    hd_sub:           'Server → Settings → Integrations → Webhooks',
+    hd_sub:           'Server ? Settings ? Integrations ? Webhooks',
     lbl_url:          'Webhook URL',
     hint_url:         'Never returned in API state or logs.',
     lbl_events:       'Enable events',
-    ev_missing_lbl:   '🔍 Missing searched',
+    ev_missing_lbl:   '?? Missing searched',
     ev_missing_sub:   'Movie/series searched (incl. title, instance)',
-    ev_upgrade_lbl:   '⬆ Upgrade searched',
+    ev_upgrade_lbl:   '? Upgrade searched',
     ev_upgrade_sub:   'Quality upgrade triggered',
-    ev_cooldown_lbl:  '⏳ Cooldown expired',
+    ev_cooldown_lbl:  '? Cooldown expired',
     ev_cooldown_sub:  'Items available for search again',
-    ev_limit_lbl:     '🚫 Daily limit',
+    ev_limit_lbl:     '?? Daily limit',
     ev_limit_sub:     'Daily search limit reached',
-    ev_offline_lbl:   '📡 Instance offline',
+    ev_offline_lbl:   '?? Instance offline',
     ev_offline_sub:   'Instance not reachable',
-    ev_stats_lbl:     '📊 Statistics report',
+    ev_stats_lbl:     '?? Statistics report',
     ev_stats_sub:     'Periodic status report to Discord',
     lbl_advanced:     'Advanced',
     lbl_interval:     'Statistics interval (min)',
-    hint_interval:    '1–10080 min (max 7 days). Only when statistics report is active.',
+    hint_interval:    '1�10080 min (max 7 days). Only when statistics report is active.',
     lbl_ratelimit:    'Rate-limit cooldown (sec)',
     hint_ratelimit:   'Minimum gap between same-type events (Discord 429 protection).',
     btn_save:         'Save',
-    btn_test:         '🔔 Send test',
-    btn_stats:        '📊 Send statistics now',
-    badge_cfg:        '✓ Configured',
-    saved:            '✓ Saved',
-    test_ok:          '✓ Test sent! Check your Discord channel.',
-    stats_ok:         '✓ Statistics sent!',
-    err:              '✗ Error',
-    saving:           '⏳ Sending...',
+    btn_test:         '?? Send test',
+    btn_stats:        '?? Send statistics now',
+    badge_cfg:        '? Configured',
+    saved:            '? Saved',
+    test_ok:          '? Test sent! Check your Discord channel.',
+    stats_ok:         '? Statistics sent!',
+    err:              '? Error',
+    saving:           '? Sending...',
   }
 };
 

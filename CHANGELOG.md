@@ -28,9 +28,14 @@
 - Dashboard typography was refined with updated font stack and stronger section hierarchy for improved readability.
 - Responsive breakpoints were expanded for better tablet and mobile behavior, including tighter small-screen spacing and safer control/button wrapping.
 - History and activity log views were tuned for mobile density (filter/input flow, row sizing, and horizontal overflow handling).
+- Dashboard, Settings, History, Activity Log, and Statistics were further normalized to a shared Preview D panel system, replacing legacy inline-heavy blocks with reusable classes for consistent spacing, headers, and card structure.
+- Page view switching now uses class-based visibility (`content-page`/`page-visible`) instead of direct inline display writes, simplifying layout state handling.
+- Dynamic service and instance cards were refactored to rely on type-based class styling (Sonarr/Radarr accents and icon treatments) with less duplicated inline CSS.
 
 ### Fixed
 - Removed duplicate sidebar logo markup that could render an extra blank icon next to the MediaHunter logo.
+- Fixed stats-page refresh/render visibility checks to follow class-based page visibility state.
+- Fixed nav active-state logic to target `data-page` items directly, preventing index/order coupling with non-page sidebar links.
 
 
 

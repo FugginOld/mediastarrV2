@@ -18,16 +18,19 @@
     .g1{width:600px;height:600px;top:-200px;left:-200px;background:var(--accent)}
     .g2{width:500px;height:500px;bottom:-200px;right:-100px;background:var(--blue)}
     .wizard{position:relative;z-index:10;width:100%;max-width:600px}
-    .theme-switch{margin:-4px auto 20px;max-width:600px}
+    .theme-switch{margin:-4px auto 20px;width:100%;max-width:none}
     .logo-wrap{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:28px}
     .logo-mark{width:72px;height:72px;border-radius:16px}
     .logo-name{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:800;color:#fff;line-height:1}
     .logo-name span{color:var(--accent)}
     .logo-sub{font-size:10px;color:var(--muted2);letter-spacing:2px;text-transform:uppercase;margin-top:6px}
-    .steps{display:flex;align-items:center;margin-bottom:24px}
-    .step{display:flex;align-items:center;gap:7px;flex:1}
-    .step:not(:last-child)::after{content:'';flex:1;height:1px;background:var(--border2);margin:0 4px;transition:background .3s}
-    .step.done::after{background:var(--accent)}
+    .steps{display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:center;column-gap:10px;margin-bottom:24px;width:100%}
+    .step{display:flex;align-items:center;gap:7px;min-width:0}
+    .step:nth-child(1){justify-self:start}
+    .step:nth-child(3){justify-self:center}
+    .step:nth-child(5){justify-self:end}
+    .step-connector{height:1px;background:var(--border2);transition:background .3s}
+    .step-connector.done{background:var(--accent)}
     .step-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;border:1px solid var(--border2);background:var(--surface);color:var(--muted2);flex-shrink:0;transition:all .25s}
     .step.active .step-dot{border-color:var(--accent);background:rgba(var(--accent-rgb),.12);color:var(--accent)}
     .step.done .step-dot{border-color:var(--green);background:rgba(var(--green-rgb),.1);color:var(--green)}
@@ -127,7 +130,9 @@
   <!-- Steps -->
   <div class="steps" id="steps">
     <div class="step active" id="s1"><div class="step-dot">1</div><span class="step-lbl">Instances</span></div>
+    <div class="step-connector" id="sc1" aria-hidden="true"></div>
     <div class="step"        id="s2"><div class="step-dot">2</div><span class="step-lbl">Discord</span></div>
+    <div class="step-connector" id="sc2" aria-hidden="true"></div>
     <div class="step"        id="s3"><div class="step-dot">3</div><span class="step-lbl">Done</span></div>
   </div>
 
@@ -341,6 +346,11 @@ function goTo(step) {
     if (!el) return;
     el.className = 'step' + (i < step ? ' done' : i === step ? ' active' : '');
     el.querySelector('.step-dot').textContent = i < step ? '✓' : i;
+  });
+  [1,2].forEach(i => {
+    const el = document.getElementById(`sc${i}`);
+    if (!el) return;
+    el.className = 'step-connector' + (i < step ? ' done' : '');
   });
   updateStepLabels();
   applyWizardLang();

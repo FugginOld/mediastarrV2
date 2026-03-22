@@ -267,7 +267,7 @@ def fresh_inst_stats() -> dict:
             "upgrades_searched":0,"skipped_cooldown":0,"skipped_daily":0,
             "skipped_unreleased":0,"queue_size":0,"scan_status":"idle",
             "scan_shows_total":0,"scan_episodes_total":0,"scan_movies_total":0,
-            "status":"unknown","version":"?"}
+            "status":"unknown","version":"?","status_detail":""}
 
 def _detect_local_tz() -> str:
     """Return the host OS IANA timezone name, falling back to UTC."""
@@ -484,6 +484,7 @@ STATE = {
 STOP_EVENT  = threading.Event()
 hunt_thread = None
 CYCLE_LOCK  = threading.Lock()
+SCAN_LOCK   = threading.Lock()
 
 # ─── Daily count cache ────────────────────────────────────────────────────────
 # Avoids repeated COUNT(*) queries on every search dispatch within a cycle.
@@ -747,8 +748,33 @@ class ArrClient:
     def ping(self):
         try:
             d = self.get("system/status")
-            return True, str(d.get("version","?"))[:20]
-        except Exception as e: return False, str(e)[:200]
+            return True, str(d.get("version","?"))[:20], ""
+        except Exception as e:
+            return False, "?", summarize_ping_error(str(e)[:200])
+
+def summarize_ping_error(raw: str) -> str:
+    text = str(raw or "").strip()
+    lower = text.lower()
+    if not text:
+        return "Connection failed"
+    if "401" in lower or "403" in lower or "unauthorized" in lower or "forbidden" in lower:
+        return "Authentication failed"
+    if "404" in lower:
+        return "API endpoint not found"
+    if "name or service not known" in lower or "nodename nor servname" in lower:
+        return "Host not found"
+    if "timed out" in lower or "timeout" in lower:
+        return "Timed out"
+    if "failed to establish a new connection" in lower or "connection refused" in lower:
+        return "Connection failed"
+    if "max retries exceeded" in lower or "connectionpool" in lower:
+        return "Host unreachable"
+    if "ssl" in lower or "certificate" in lower:
+        return "TLS/SSL error"
+    compact = re.sub(r"\s+", " ", text)
+    if ":" in compact:
+        compact = compact.split(":", 1)[0].strip()
+    return compact[:60] or "Connection failed"
 
 # ─── Activity Log ─────────────────────────────────────────────────────────────
 def log_act(service:str, action:str, item:str, status:str="info"):
@@ -1053,24 +1079,31 @@ def scan_radarr_instance(inst: dict):
 
 def run_scan_if_needed():
     """Scan instances that are overdue for a queue refresh (online instances only)."""
-    to_scan = [
-        i for i in CONFIG["instances"]
-        if i.get("enabled") and i.get("api_key") and needs_scan(i["id"])
-        and STATE["inst_stats"].get(i["id"], {}).get("status") == "online"
-    ]
-    if not to_scan:
-        return
+    if not SCAN_LOCK.acquire(blocking=False):
+        return None
     STATE["scan_running"] = True
     try:
+        to_scan = [
+            i for i in CONFIG["instances"]
+            if i.get("enabled") and i.get("api_key") and needs_scan(i["id"])
+            and STATE["inst_stats"].get(i["id"], {}).get("status") == "online"
+        ]
+        if not to_scan:
+            return 0
+        scanned = 0
         for inst in to_scan:
             if STOP_EVENT.is_set():
                 break
             if inst["type"] == "sonarr":
                 scan_sonarr_instance(inst)
+                scanned += 1
             elif inst["type"] == "radarr":
                 scan_radarr_instance(inst)
+                scanned += 1
+        return scanned
     finally:
         STATE["scan_running"] = False
+        SCAN_LOCK.release()
 
 
 # ─── Hunt: Sonarr (dispatch from queue) ──────────────────────────────────────
@@ -1193,11 +1226,15 @@ def ping_all():
     for inst in CONFIG["instances"]:
         stats = STATE["inst_stats"].setdefault(inst["id"], fresh_inst_stats())
         if not inst.get("enabled") or not inst.get("api_key"):
-            stats["status"] = "disabled"; continue
-        ok, ver = ArrClient(inst["name"], inst["url"], inst["api_key"]).ping()
+            stats["status"] = "disabled"
+            stats["version"] = "?"
+            stats["status_detail"] = "Disabled"
+            continue
+        ok, ver, detail = ArrClient(inst["name"], inst["url"], inst["api_key"]).ping()
         prev_status = stats.get("status","unknown")
         stats["status"]  = "online" if ok else "offline"
         stats["version"] = ver
+        stats["status_detail"] = "" if ok else detail
         # Notify only on transition online→offline
         if not ok and prev_status == "online":
             discord_send("offline", "Instance offline", f"**{inst['name']}** is unreachable", inst["name"])
@@ -1311,8 +1348,8 @@ def api_setup_ping():
     ok, err = validate_api_key(key)
     if not ok: return jsonify({"ok":False,"msg":f"API Key: {err}"}),400
     try:
-        ok, ver = ArrClient(itype, url, key).ping()
-        return jsonify({"ok":ok,"version":ver})
+        ok, ver, detail = ArrClient(itype, url, key).ping()
+        return jsonify({"ok":ok,"version":ver,"msg":detail})
     except: return jsonify({"ok":False,"msg":"Connection failed"})
 
 @app.route("/api/setup/complete", methods=["POST"])
@@ -1433,10 +1470,12 @@ def api_instances_ping(inst_id:str):
     if not inst: return jsonify({"ok":False,"error":"Not found"}),404
     if not inst.get("api_key"): return jsonify({"ok":False,"msg":"Missing API key"})
     try:
-        ok,ver = ArrClient(inst["name"],inst["url"],inst["api_key"]).ping()
-        STATE["inst_stats"].setdefault(inst_id,fresh_inst_stats())["status"] = "online" if ok else "offline"
-        STATE["inst_stats"][inst_id]["version"] = ver
-        return jsonify({"ok":ok,"version":ver})
+        ok, ver, detail = ArrClient(inst["name"],inst["url"],inst["api_key"]).ping()
+        stats = STATE["inst_stats"].setdefault(inst_id,fresh_inst_stats())
+        stats["status"] = "online" if ok else "offline"
+        stats["version"] = ver
+        stats["status_detail"] = "" if ok else detail
+        return jsonify({"ok":ok,"version":ver,"msg":detail})
     except: return jsonify({"ok":False,"msg":"Connection failed"})
 
 # ── Main API ──────────────────────────────────────────────────────────────────
@@ -1648,13 +1687,38 @@ def api_discord_stats_now():
 def api_queue_scan():
     """Trigger an immediate full rescan of all instances (clears and rebuilds queue)."""
     if STATE.get("scan_running"):
+        log_act("System", "Initial DB scan request ignored", "A scan is already in progress", "warning")
         return jsonify({"ok": False, "error": "Scan already in progress"}), 409
+    configured = len(CONFIG.get("instances", []))
+    enabled = sum(1 for inst in CONFIG.get("instances", []) if inst.get("enabled") and inst.get("api_key"))
+    log_act("System", "Initial DB scan requested", f"configured: {configured} · eligible config: {enabled}", "info")
     CONFIG["queue_last_scan"] = {}
     save_config(CONFIG)
     def _bg():
-        ping_all()
-        _ensure_inst_stats()
-        run_scan_if_needed()
+        try:
+            log_act("System", "Initial DB scan started", "Refreshing instance status before queue rebuild", "info")
+            ping_all()
+            _ensure_inst_stats()
+            eligible = [
+                inst for inst in CONFIG["instances"]
+                if inst.get("enabled") and inst.get("api_key")
+                and STATE["inst_stats"].get(inst["id"], {}).get("status") == "online"
+            ]
+            if not eligible:
+                log_act("System", "Initial DB scan skipped", "No online enabled instances available", "warning")
+                return
+            scanned = run_scan_if_needed()
+            if scanned is None:
+                log_act("System", "Initial DB scan skipped", "Another scan is already running", "warning")
+                return
+            if scanned == 0:
+                log_act("System", "Initial DB scan completed", "No instances required a queue rebuild", "info")
+                return
+            queue_items = sum(db.queue_count(inst["id"]) for inst in eligible)
+            log_act("System", "Initial DB scan completed", f"instances scanned: {scanned} · queue items: {queue_items}", "success")
+        except Exception as e:
+            logger.exception("Initial DB scan failed")
+            log_act("System", "Initial DB scan failed", str(e)[:200], "error")
     threading.Thread(target=_bg, daemon=True).start()
     return jsonify({"ok": True, "message": "Scan started"})
 
