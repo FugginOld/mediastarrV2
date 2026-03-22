@@ -59,6 +59,8 @@ MAX_INSTANCES       = 20
 MIN_INTERVAL_SEC    = 900   # 15 minutes absolute minimum
 AUTH_PASSWORD       = os.environ.get("MEDIAHUNTER_PASSWORD", "").strip()
 DEFAULT_PASSWORD    = "change-me"
+APP_VERSION         = "1.0 Beta"
+APP_BUILD_ID        = os.environ.get("MEDIAHUNTER_BUILD_ID", "").strip() or APP_VERSION
 
 def normalize_theme_name(theme: str | None) -> str:
     value = str(theme or "").strip().lower()
@@ -342,6 +344,8 @@ DEFAULT_CONFIG = {
     "jitter_max":            300,   # max random seconds added to interval (0=off)
     "dry_run":    False,
     "auto_start": False,
+    "last_boot_version": "",
+    "last_boot_build_id": "",
     # Sonarr search granularity: "episode" | "season" | "series"
     "sonarr_search_mode": "season",   # season is safer default (fewer API calls)
     # Whether to search for upgrades at all
@@ -1449,8 +1453,15 @@ def api_control():
     d=request.get_json(silent=True) or {}; action=d.get("action")
     if action not in ALLOWED_ACTIONS: return jsonify({"ok":False,"error":"Invalid action"}),400
     if action=="start" and not STATE["running"]:
+        CONFIG["auto_start"] = True
+        CONFIG["last_boot_build_id"] = APP_BUILD_ID
+        CONFIG["last_boot_version"] = APP_VERSION
+        save_config(CONFIG)
         STOP_EVENT.clear(); hunt_thread=threading.Thread(target=hunt_loop,daemon=True); hunt_thread.start()
-    elif action=="stop": STOP_EVENT.set()
+    elif action=="stop":
+        CONFIG["auto_start"] = False
+        save_config(CONFIG)
+        STOP_EVENT.set()
     elif action=="run_now":
         if not STATE["running"]:
             STOP_EVENT.clear(); threading.Thread(target=run_cycle,daemon=True).start()
@@ -1649,9 +1660,26 @@ def start_runtime():
         logger.warning("MEDIAHUNTER_PASSWORD is set to the insecure default 'change-me' — update it before exposing this instance to a network.")
     if CONFIG.get("setup_complete"):
         _ensure_inst_stats(); ping_all()
+        prev_build_id = safe_str(CONFIG.get("last_boot_build_id", ""), 64)
+        if not prev_build_id:
+            prev_build_id = safe_str(CONFIG.get("last_boot_version", ""), 32)
+        first_boot_after_setup = not prev_build_id
+        is_build_update = bool(prev_build_id) and prev_build_id != APP_BUILD_ID
+        if first_boot_after_setup or is_build_update:
+            CONFIG["auto_start"] = False
+            CONFIG["last_boot_build_id"] = APP_BUILD_ID
+            CONFIG["last_boot_version"] = APP_VERSION
+            save_config(CONFIG)
+        STOP_EVENT.set()
+        STATE["running"] = False
+        STATE["next_run"] = None
         if CONFIG.get("auto_start", False):
-            hunt_thread = threading.Thread(target=hunt_loop, daemon=True); hunt_thread.start()
+            STOP_EVENT.clear()
+            hunt_thread = threading.Thread(target=hunt_loop, daemon=True)
+            hunt_thread.start()
             log_act("System", msg("auto_start"), "", "info")
+        elif is_build_update:
+            log_act("System", "Stopped after update - press Start to resume", "", "info")
     else:
         log_act("System", msg("setup_required", setup_url=setup_url_for_logs()), "", "warning")
 

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediaHunter Theme Preview D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/theme-system.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "DM Sans", sans-serif;
+    background:
+      radial-gradient(circle at top right, rgba(255,255,255,0.06), transparent 22%),
+      linear-gradient(180deg, #0c1018 0%, #070a12 100%);
+    color: #ecf1ff;
+  }
+  .page {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 32px 24px 56px;
+  }
+  .hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: end;
+    margin-bottom: 28px;
+  }
+  .eyebrow {
+    color: #8b94ab;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(32px, 5vw, 52px);
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+  }
+  .hero p {
+    margin: 14px 0 0;
+    max-width: 760px;
+    color: #9ba6c0;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: end;
+  }
+  .legend-pill {
+    border: 1px solid #20283d;
+    background: rgba(255,255,255,0.03);
+    color: #b4bfd8;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+  }
+  .theme-card {
+    border-radius: 26px;
+    overflow: hidden;
+    border: 1px solid #212941;
+    background: #0d1320;
+    box-shadow: 0 22px 70px rgba(0,0,0,0.28);
+  }
+  .theme-meta {
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: start;
+  }
+  .theme-name {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .theme-sub {
+    margin: 6px 0 0;
+    color: #8e98b2;
+    font-size: 13px;
+  }
+  .chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: end;
+  }
+  .chips span {
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 11px;
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #c8d0e6;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .preview {
+    padding: 18px;
+    background: radial-gradient(circle at right top, rgba(var(--accent-rgb), 0.16), transparent 22%), var(--bg);
+    color: var(--text);
+  }
+  .shell {
+    display: grid;
+    grid-template-columns: 178px minmax(0, 1fr);
+    min-height: 560px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--bg) 75%, #000 25%);
+  }
+  .sidebar {
+    background: color-mix(in srgb, var(--bg2) 90%, transparent);
+    border-right: 1px solid var(--border);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+  }
+  .brand {
+    padding: 10px 10px 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+  .brand-name {
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+  }
+  .brand-name span { color: var(--accent-g); }
+  .brand-sub {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .item {
+    padding: 10px 12px;
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
+  .item.active {
+    color: var(--accent-g);
+    background: rgba(var(--accent-rgb), 0.14);
+    border-color: rgba(var(--accent-rgb), 0.26);
+  }
+  .sidebar-foot {
+    margin-top: auto;
+    padding: 12px 10px 0;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .topbar,
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg2) 92%, transparent);
+  }
+  .title {
+    font-size: 20px;
+    font-weight: 800;
+  }
+  .status {
+    margin-left: auto;
+    color: var(--green);
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .btn {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    border-radius: 12px;
+    padding: 9px 12px;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .btn.primary {
+    color: var(--accent-g);
+    border-color: rgba(var(--accent-rgb), 0.42);
+  }
+  .meta {
+    margin-left: auto;
+    display: flex;
+    gap: 14px;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .split {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    min-height: 0;
+  }
+  .left {
+    padding: 16px;
+    overflow: hidden;
+  }
+  .right {
+    border-left: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg2) 84%, transparent);
+    min-width: 0;
+  }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent), var(--bg2);
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 800;
+    font-size: 14px;
+  }
+  .chip {
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: 10px;
+    color: var(--green);
+    border: 1px solid rgba(var(--green-rgb), 0.35);
+    background: rgba(var(--green-rgb), 0.1);
+    font-family: "JetBrains Mono", monospace;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+  .stat {
+    background: var(--surface);
+    padding: 14px 16px;
+  }
+  .label {
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .value {
+    font-size: 26px;
+    font-weight: 800;
+  }
+  .success { color: var(--green); }
+  .warn { color: var(--yellow); }
+  .info { color: var(--blue); }
+  .accent { color: var(--accent-g); }
+  .overview { padding: 16px; }
+  .bar {
+    height: 8px;
+    background: color-mix(in srgb, var(--border) 80%, #000 20%);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 10px 0 14px;
+  }
+  .fill {
+    width: 35%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-g));
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .mono {
+    color: var(--muted);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+  }
+  .right-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .event {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .event-top {
+    display: flex;
+    gap: 8px;
+    color: var(--muted);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+  .event-msg { font-size: 13px; }
+  @media (max-width: 1280px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 900px) {
+    .hero {
+      flex-direction: column;
+      align-items: start;
+    }
+    .legend {
+      justify-content: start;
+    }
+    .shell {
+      grid-template-columns: 1fr;
+    }
+    .sidebar {
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .split {
+      grid-template-columns: 1fr;
+    }
+    .right {
+      border-left: 0;
+      border-top: 1px solid var(--border);
+    }
+    .meta {
+      display: none;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Preview D Theme Gallery</div>
+        <h1>One layout, four production themes.</h1>
+        <p>This page mirrors the live app behavior: one adaptive System theme that follows the OS, plus GitHub, Discord, and Plex inspired palettes. The layout stays fixed so only color direction changes.</p>
+      </div>
+      <div class="legend">
+        <span class="legend-pill">Layout D retained</span>
+        <span class="legend-pill">System follows OS</span>
+        <span class="legend-pill">GitHub / Discord / Plex</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="theme-card">
+        <div class="theme-meta">
+          <div>
+            <h2 class="theme-name">System</h2>
+            <p class="theme-sub">Adaptive default that follows browser or OS light-dark preference, matching production app behavior.</p>
+          </div>
+          <div class="chips"><span>production</span><span>adaptive</span><span>safe default</span></div>
+        </div>
+        <div class="preview" data-theme="system">
+          <div class="shell">
+            <aside class="sidebar">
+              <div class="brand"><div class="brand-name">Media<span>Hunter</span></div><div class="brand-sub">System</div></div>
+              <div class="nav"><div class="item active">Dashboard</div><div class="item">Settings</div><div class="item">History</div><div class="item">Activity Log</div><div class="item">Statistics</div></div>
+              <div class="sidebar-foot">follows prefers-color-scheme</div>
+            </aside>
+            <main class="main">
+              <div class="topbar"><div class="title">Dashboard</div><div class="status">RUNNING - CYCLE 12 - LOCAL TZ</div></div>
+              <div class="controls"><button class="btn primary">Start</button><button class="btn">Stop</button><button class="btn">Run Now</button><div class="meta"><span>Total 47</span><span>Queue 88</span><span>Next 14:52</span></div></div>
+              <div class="split">
+                <div class="left">
+                  <section class="panel"><div class="head"><span>Sonarr - Home</span><span class="chip">ONLINE</span></div><div class="stats"><div class="stat"><div class="label">Missing</div><div class="value success">47</div></div><div class="stat"><div class="label">Searched</div><div class="value info">8</div></div><div class="stat"><div class="label">Upgrades</div><div class="value warn">12</div></div><div class="stat"><div class="label">Skipped</div><div class="value">3</div></div></div></section>
+                  <section class="panel"><div class="head"><span>Radarr - Home</span><span class="chip">ONLINE</span></div><div class="stats"><div class="stat"><div class="label">Missing</div><div class="value success">23</div></div><div class="stat"><div class="label">Searched</div><div class="value info">4</div></div><div class="stat"><div class="label">Upgrades</div><div class="value accent">6</div></div><div class="stat"><div class="label">Skipped</div><div class="value">1</div></div></div></section>
+                  <section class="panel"><div class="head"><span>Overview</span><span class="mono">LIVE</span></div><div class="overview"><div class="label">Daily searches</div><div class="mono">7 / 20</div><div class="bar"><div class="fill"></div></div><div class="row"><span>Hunt interval</span><span class="mono">15 min</span></div><div class="row"><span>Cooldown</span><span class="mono">7 days</span></div><div class="row"><span>Last scan</span><span class="mono">3 days ago</span></div></div></section>
+                </div>
+                <aside class="right"><div class="right-head">Live Activity</div><div class="event"><div class="event-top"><span>14:37:09</span><span>SONARR</span></div><div class="event-msg">Missing searched - The Bear S03E01</div></div><div class="event"><div class="event-top"><span>14:36:55</span><span>RADARR</span></div><div class="event-msg">Upgrade searched - Dune Part Two</div></div><div class="event"><div class="event-top"><span>14:34:22</span><span>SYSTEM</span></div><div class="event-msg">Cycle 12 complete - 12 searches today</div></div></aside>
+              </div>
+            </main>
+          </div>
+        </div>
+      </article>
+
+      <article class="theme-card">
+        <div class="theme-meta">
+          <div>
+            <h2 class="theme-name">GitHub Inspired</h2>
+            <p class="theme-sub">Neutral developer palette with high legibility and restrained blue accents.</p>
+          </div>
+          <div class="chips"><span>production</span><span>neutral</span><span>developer</span></div>
+        </div>
+        <div class="preview" data-theme="github-inspired">
+          <div class="shell">
+            <aside class="sidebar">
+              <div class="brand"><div class="brand-name">Media<span>Hunter</span></div><div class="brand-sub">GitHub Inspired</div></div>
+              <div class="nav"><div class="item active">Dashboard</div><div class="item">Settings</div><div class="item">History</div><div class="item">Activity Log</div><div class="item">Statistics</div></div>
+              <div class="sidebar-foot">review-first - neutral contrast</div>
+            </aside>
+            <main class="main">
+              <div class="topbar"><div class="title">Dashboard</div><div class="status">RUNNING - CYCLE 12 - LOCAL TZ</div></div>
+              <div class="controls"><button class="btn primary">Start</button><button class="btn">Stop</button><button class="btn">Run Now</button><div class="meta"><span>Total 47</span><span>Queue 88</span><span>Next 14:52</span></div></div>
+              <div class="split">
+                <div class="left">
+                  <section class="panel"><div class="head"><span>Sonarr - Home</span><span class="chip">ONLINE</span></div><div class="stats"><div class="stat"><div class="label">Missing</div><div class="value success">47</div></div><div class="stat"><div class="label">Searched</div><div class="value info">8</div></div><div class="stat"><div class="label">Upgrades</div><div class="value warn">12</div></div><div class="stat"><div class="label">Skipped</div><div class="value">3</div></div></div></section>
+                  <section class="panel"><div class="head"><span>Radarr - Home</span><span class="chip">ONLINE</span></div><div class="stats"><div class="stat"><div class="label">Missing</div><div class="value success">23</div></div><div class="stat"><div class="label">Searched</div><div class="value info">4</div></div><div class="stat"><div class="label">Upgrades</div><div class="value accent">6</div></div><div class="stat"><div class="label">Skipped</div><div class="value">1</div></div></div></section>
+                  <section class="panel"><div class="head"><span>Overview</span><span class="mono">LIVE</span></div><div class="overview"><div class="label">Daily searches</div><div class="mono">7 / 20</div><div class="bar"><div class="fill"></div></div><div class="row"><span>Hunt interval</span><span class="mono">15 min</span></div><div class="row"><span>Cooldown</span><span class="mono">7 days</span></div><div class="row"><span>Last scan</span><span class="mono">3 days ago</span></div></div></section>
+                </div>
+                <aside class="right"><div class="right-head">Live Activity</div><div class="event"><div class="event-top"><span>14:37:09</span><span>SONARR</span></div><div class="event-msg">Missing searched - The Bear S03E01</div></div><div class="event"><div class="event-top"><span>14:36:55</span><span>RADARR</span></div><div class="event-msg">Upgrade searched - Dune Part Two</div></div><div class="event"><div class="event-top"><span>14:34:22</span><span>SYSTEM</span></div><div class="event-msg">Cycle 12 complete - 12 searches today</div></div></aside>
+              </div>
+            </main>
+          </div>
+        </div>
+      </article>
+
+      <article class="theme-card">
+        <div class="theme-meta">
+          <div>
+            <h2 class="theme-name">Discord Inspired</h2>
+            <p class="theme-sub">Soft violet and charcoal contrast for a friendlier desktop feel.</p>
+          </div>
+          <div class="chips"><span>production</span><span>violet</span><span>modern</span></div>
+        </div>
+        <div class="preview" data-theme="discord-inspired">
+          <div class="shell">
+            <aside class="sidebar">
+              <div class="brand"><div class="brand-name">Media<span>Hunter</span></div><div class="brand-sub">Discord Inspired</div></div>
+              <div class="nav"><div class="item active">Dashboard</div><div class="item">Settings</div><div class="item">History</div><div class="item">Activity Log</div><div class="item">Statistics</div></div>
+              <div class="sidebar-foot">friendlier contrast - soft violet</div>
+            </aside>
+            <main class="main">
+              <div class="topbar"><div class="title">Dashboard</div><div class="status">RUNNING - CYCLE 12 - LOCAL TZ</div></div>
+              <div class="controls"><button class="btn primary">Start</button><button class="btn">Stop</button><button class="btn">Run Now</button><div class="meta"><span>Total 47</span><span>Queue 88</span><span>Next 14:52</span></div></div>
+              <div class="split">
+                <div class="left">
+                  <section class="panel"><div class="head"><span>Sonarr - Home</span><span class="chip">ONLINE</span></div><div class="stats"><div class="stat"><div class="label">Missing</div><div class="value success">47</div></div><div class="stat"><div class="label">Searched</div><div class="value info">8</div></div><div class="stat"><div class="label">Upgrades</div><div class="value warn">12</div></div><div class="stat"><div class="label">Skipped</div><div class="value">3</div></div></div></section>
+                  <section class="panel"><div class="head"><span>Radarr - Home</span><span class="chip">ONLINE</span></div><div class="stats"><div class="stat"><div class="label">Missing</div><div class="value success">23</div></div><div class="stat"><div class="label">Searched</div><div class="value info">4</div></div><div class="stat"><div class="label">Upgrades</div><div class="value accent">6</div></div><div class="stat"><div class="label">Skipped</div><div class="value">1</div></div></div></section>
+                  <section class="panel"><div class="head"><span>Overview</span><span class="mono">LIVE</span></div><div class="overview"><div class="label">Daily searches</div><div class="mono">7 / 20</div><div class="bar"><div class="fill"></div></div><div class="row"><span>Hunt interval</span><span class="mono">15 min</span></div><div class="row"><span>Cooldown</span><span class="mono">7 days</span></div><div class="row"><span>Last scan</span><span class="mono">3 days ago</span></div></div></section>
+                </div>
+                <aside class="right"><div class="right-head">Live Activity</div><div class="event"><div class="event-top"><span>14:37:09</span><span>SONARR</span></div><div class="event-msg">Missing searched - The Bear S03E01</div></div><div class="event"><div class="event-top"><span>14:36:55</span><span>RADARR</span></div><div class="event-msg">Upgrade searched - Dune Part Two</div></div><div class="event"><div class="event-top"><span>14:34:22</span><span>SYSTEM</span></div><div class="event-msg">Cycle 12 complete - 12 searches today</div></div></aside>
+              </div>
+            </main>
+          </div>
+        </div>
+      </article>
+
+      <article class="theme-card">
+        <div class="theme-meta">
+          <div>
+            <h2 class="theme-name">Plex Inspired</h2>
+            <p class="theme-sub">Warmer amber-led surfaces that push the app toward a media-center personality.</p>
+          </div>
+          <div class="chips"><span>production</span><span>warm amber</span><span>cinema</span></div>
+        </div>
+        <div class="preview" data-theme="plex-inspired">
+          <div class="shell">
+            <aside class="sidebar">
+              <div class="brand"><div class="brand-name">Media<span>Hunter</span></div><div class="brand-sub">Plex Inspired</div></div>
+              <div class="nav"><div class="item active">Dashboard</div><div class="item">Settings</div><div class="item">History</div><div class="item">Activity Log</div><div class="item">Statistics</div></div>
+              <div class="sidebar-foot">media-center warmth - amber</div>
+            </aside>
+            <main class="main">
+              <div class="topbar"><div class="title">Dashboard</div><div class="status">RUNNING - CYCLE 12 - LOCAL TZ</div></div>
+              <div class="controls"><button class="btn primary">Start</button><button class="btn">Stop</button><button class="btn">Run Now</button><div class="meta"><span>Total 47</span><span>Queue 88</span><span>Next 14:52</span></div></div>
+              <div class="split">
+                <div class="left">
+                  <section class="panel"><div class="head"><span>Sonarr - Home</span><span class="chip">ONLINE</span></div><div class="stats"><div class="stat"><div class="label">Missing</div><div class="value success">47</div></div><div class="stat"><div class="label">Searched</div><div class="value info">8</div></div><div class="stat"><div class="label">Upgrades</div><div class="value warn">12</div></div><div class="stat"><div class="label">Skipped</div><div class="value">3</div></div></div></section>
+                  <section class="panel"><div class="head"><span>Radarr - Home</span><span class="chip">ONLINE</span></div><div class="stats"><div class="stat"><div class="label">Missing</div><div class="value success">23</div></div><div class="stat"><div class="label">Searched</div><div class="value info">4</div></div><div class="stat"><div class="label">Upgrades</div><div class="value accent">6</div></div><div class="stat"><div class="label">Skipped</div><div class="value">1</div></div></div></section>
+                  <section class="panel"><div class="head"><span>Overview</span><span class="mono">LIVE</span></div><div class="overview"><div class="label">Daily searches</div><div class="mono">7 / 20</div><div class="bar"><div class="fill"></div></div><div class="row"><span>Hunt interval</span><span class="mono">15 min</span></div><div class="row"><span>Cooldown</span><span class="mono">7 days</span></div><div class="row"><span>Last scan</span><span class="mono">3 days ago</span></div></div></section>
+                </div>
+                <aside class="right"><div class="right-head">Live Activity</div><div class="event"><div class="event-top"><span>14:37:09</span><span>SONARR</span></div><div class="event-msg">Missing searched - The Bear S03E01</div></div><div class="event"><div class="event-top"><span>14:36:55</span><span>RADARR</span></div><div class="event-msg">Upgrade searched - Dune Part Two</div></div><div class="event"><div class="event-top"><span>14:34:22</span><span>SYSTEM</span></div><div class="event-msg">Cycle 12 complete - 12 searches today</div></div></aside>
+              </div>
+            </main>
+          </div>
+        </div>
+      </article>
+    </section>
+  </div>
+</body>
+</html>
