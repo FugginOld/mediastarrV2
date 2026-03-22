@@ -10,7 +10,7 @@ New in v1.0 Beta:
   - Sonarr search granularity: series / season / episode
   - Upgrade search can be disabled per instance
   - Configurable request timeout (default 30s)
-  - Configurable timezone (default UTC, affects timestamps + log display)
+  - Configurable timezone (defaults to OS timezone, affects timestamps + log display)
     - English-only log messages and UI labels
   - Instance management fully in main settings (no wizard redirect needed)
 """
@@ -247,11 +247,51 @@ def fresh_inst_stats() -> dict:
             "skipped_unreleased":0,"queue_size":0,"scan_status":"idle",
             "status":"unknown","version":"?"}
 
+def _detect_local_tz() -> str:
+    """Return the host OS IANA timezone name, falling back to UTC."""
+    # 1. Honour an explicit TZ environment variable if set.
+    env_tz = os.environ.get("TZ", "").strip()
+    if env_tz:
+        try:
+            zoneinfo.ZoneInfo(env_tz)
+            return env_tz
+        except Exception:
+            pass
+    # 2. Python 3.11+ exposes the local zone directly.
+    try:
+        local = zoneinfo.ZoneInfo("localtime")
+        if local.key:
+            return local.key
+    except Exception:
+        pass
+    # 3. Read /etc/timezone (Debian/Ubuntu containers).
+    try:
+        tz_name = Path("/etc/timezone").read_text().strip()
+        if tz_name:
+            zoneinfo.ZoneInfo(tz_name)  # validate
+            return tz_name
+    except Exception:
+        pass
+    # 4. Resolve /etc/localtime symlink to an IANA name (most Linux/macOS).
+    try:
+        lt = Path("/etc/localtime").resolve()
+        parts = lt.parts
+        zi_idx = next((i for i, p in enumerate(parts) if p == "zoneinfo"), None)
+        if zi_idx is not None:
+            tz_name = "/".join(parts[zi_idx + 1:])
+            zoneinfo.ZoneInfo(tz_name)  # validate
+            return tz_name
+    except Exception:
+        pass
+    return "UTC"
+
+OS_TIMEZONE = _detect_local_tz()
+
 def now_local() -> datetime:
     """Current time in configured timezone."""
-    tz_name = CONFIG.get("timezone", "UTC")
+    tz_name = CONFIG.get("timezone", OS_TIMEZONE)
     try: tz = zoneinfo.ZoneInfo(tz_name)
-    except Exception: tz = zoneinfo.ZoneInfo("UTC")
+    except Exception: tz = zoneinfo.ZoneInfo(OS_TIMEZONE)
     return datetime.now(tz)
 
 def fmt_time(dt: datetime) -> str:
@@ -272,7 +312,7 @@ DEFAULT_CONFIG = {
     "setup_complete": False,
     "language": "en",
     "theme": "dark",
-    "timezone": "UTC",
+    "timezone": OS_TIMEZONE,
     "instances": [],
     "hunt_missing_delay":    900,   # seconds (min 900 = 15 min)
     "hunt_upgrade_delay":   1800,
@@ -405,6 +445,31 @@ STATE = {
 STOP_EVENT  = threading.Event()
 hunt_thread = None
 CYCLE_LOCK  = threading.Lock()
+
+# ─── Daily count cache ────────────────────────────────────────────────────────
+# Avoids repeated COUNT(*) queries on every search dispatch within a cycle.
+_daily_cache: dict = {"date": "", "n": 0}
+_daily_cache_lock = threading.Lock()
+
+def _today_count(refresh: bool = False) -> int:
+    """Return today's dispatched search count from cache, hitting DB only when
+    the date has changed or refresh=True is requested."""
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    with _daily_cache_lock:
+        if refresh or _daily_cache["date"] != today:
+            _daily_cache["date"] = today
+            _daily_cache["n"]    = db.count_today()
+        return _daily_cache["n"]
+
+def _today_count_inc():
+    """Increment the in-memory daily count after a successful dispatch."""
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    with _daily_cache_lock:
+        if _daily_cache["date"] != today:
+            _daily_cache["date"] = today
+            _daily_cache["n"]    = db.count_today()
+        else:
+            _daily_cache["n"] += 1
 
 def _ensure_inst_stats():
     for inst in CONFIG["instances"]:
@@ -586,7 +651,7 @@ def jittered_delay(base_sec: int) -> tuple[int, int]:
 # ─── Hunt helpers ─────────────────────────────────────────────────────────────
 def daily_limit_reached() -> bool:
     limit = CONFIG.get("daily_limit", 0)
-    return limit > 0 and db.count_today() >= limit
+    return limit > 0 and _today_count() >= limit
 
 def _parse_release_dt(raw):
     if raw is None:
@@ -661,6 +726,7 @@ def do_search(client: ArrClient, iid: str, item_type: str, item_id: int,
             return "error"
         result = "dispatched"
         db.upsert_search(iid, item_type, item_id, title, "dispatched", changed, year)
+        _today_count_inc()
 
     # Discord notification
     inst = next((i for i in CONFIG["instances"] if i["id"] == iid), {})
@@ -893,10 +959,10 @@ def hunt_sonarr_instance(inst: dict):
         if STOP_EVENT.is_set() or searched >= CONFIG["max_searches_per_run"]:
             break
         if daily_limit_reached():
-            log_act(name, msg("daily_limit", today=db.count_today(),
+            log_act(name, msg("daily_limit", today=_today_count(),
                               limit=CONFIG["daily_limit"]), "", "warning")
             label = "Daily limit reached"
-            desc = f"Today: {db.count_today()}/{CONFIG['daily_limit']} searches"
+            desc = f"Today: {_today_count()}/{CONFIG['daily_limit']} searches"
             discord_send("limit", label, desc, name)
             return
 
@@ -959,8 +1025,7 @@ def hunt_radarr_instance(inst: dict):
         if STOP_EVENT.is_set() or searched >= CONFIG["max_searches_per_run"]:
             break
         if daily_limit_reached():
-            lang = CONFIG.get("language", "en")
-            log_act(name, msg("daily_limit", today=db.count_today(),
+            log_act(name, msg("daily_limit", today=_today_count(),
                               limit=CONFIG["daily_limit"]), "", "warning")
             return
 
@@ -1005,8 +1070,9 @@ def run_cycle():
         STATE["last_run"] = fmt_dt(now_local())
         active = [i for i in CONFIG["instances"] if i.get("enabled") and i.get("api_key")]
         limit  = CONFIG.get("daily_limit",0)
+        _today_count(refresh=True)  # prime/reset cycle-local cache
         log_act("System", msg("cycle_start", n=STATE["cycle_count"],
-                active=len(active), today=db.count_today(), limit=limit or "∞"), "", "info")
+                active=len(active), today=_today_count(), limit=limit or "∞"), "", "info")
         _ensure_inst_stats()
         for inst in CONFIG["instances"]:
             s = STATE["inst_stats"].get(inst["id"], fresh_inst_stats())
@@ -1026,7 +1092,7 @@ def run_cycle():
                 log_act(inst["name"], msg("skipped_offline"), "", "warning"); continue
             if inst["type"] == "sonarr":   hunt_sonarr_instance(inst)
             elif inst["type"] == "radarr": hunt_radarr_instance(inst)
-        log_act("System", msg("cycle_done", n=STATE["cycle_count"], today=db.count_today()), "", "info")
+        log_act("System", msg("cycle_done", n=STATE["cycle_count"], today=_today_count()), "", "info")
         return True
     finally:
         CYCLE_LOCK.release()
