@@ -18,7 +18,7 @@ English documentation
 <!-- ENGLISH -->
 <a name="en"></a>
 
-**Automated media search for Sonarr & Radarr** — queue-based scanning and dispatch for missing content and quality upgrades on a configurable schedule. Includes a web dashboard, first-run wizard, SQLite persistence, multi-instance support, Discord notifications, and 3 themes.
+**Automated media search for Sonarr & Radarr** — queue-based scanning and dispatch for missing content and quality upgrades on a configurable schedule. Includes a web dashboard, first-run wizard, SQLite persistence, multi-instance support, Discord notifications, and a modern 4-theme UI.
 
 ## ✨ Features
 
@@ -36,8 +36,8 @@ English documentation
 | 🔄 Queue refresh | Initial full scan, then automatic periodic queue refresh |
 | 🔔 Discord | 6 events + periodic stats report + rate-limit protection |
 | 🌐 Language | English only (UI + logs + Discord messages) |
-| 🎨 3 themes | Dark / Light / OLED Black |
-| 🕐 Timezone | Configurable — all timestamps in local time |
+| 🎨 Theme system | System (auto light/dark), GitHub Inspired, Discord Inspired, Plex Inspired |
+| 🕐 Timezone | Defaults to OS timezone, user-configurable |
 | 🔒 Secure | Input validation, hardened headers, optional dashboard/API password, CSRF-protected write requests |
 
 ## 🧠 How It Works
@@ -64,6 +64,12 @@ cd mediahunter && mkdir data
 docker compose up -d
 open http://localhost:7979
 ```
+
+### Theme Migration Note
+
+- Existing configs using legacy theme values (`dark`, `light`, or `oled`) are automatically mapped to `system`.
+- No manual migration is required.
+- You can switch anytime to `GitHub Inspired`, `Discord Inspired`, or `Plex Inspired` from the UI theme picker.
 
 ## 🐳 Docker Compose
 
@@ -133,11 +139,23 @@ Settings → Discord:
 | Sonarr search mode | Season | Episode / Season / Series |
 | Search upgrades | On | On / Off |
 | Queue scan interval | 7 days | 1–365 days |
-| Timezone | UTC | any IANA timezone |
-| Theme | Dark | Dark / Light / OLED |
+| Timezone | OS local timezone | any IANA timezone |
+| Theme | System | System / GitHub Inspired / Discord Inspired / Plex Inspired |
 | Language | English | fixed |
 | Discord rate-limit | 5s | 1–300s |
 | Discord stats interval | 60 min | 1–10080 min |
+
+## 🖥️ UI and Themes
+
+- The dashboard, setup wizard, and login screen now share one consistent theme system.
+- `System` theme follows your OS/browser preference (`prefers-color-scheme`) automatically.
+- Theme choices are available directly in the UI with color swatches and saved to config.
+- Legacy theme values (`dark`, `light`, `oled`) are mapped automatically to `system` for backward compatibility.
+- Reusable styles are organized in shared static stylesheets for easier maintenance:
+  - `static/theme-system.css` (theme tokens + theme picker styles)
+  - `static/auth-common.css` (shared setup/login auth UI styles)
+  - `static/ui-primitives.css` (shared card/button/input foundations)
+  - `static/status-primitives.css` (shared status chips/results/badge semantics)
 
 ## 📡 API
 
