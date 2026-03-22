@@ -1,0 +1,76 @@
+/* Shared status/badge semantics across dashboard and setup */
+
+.status-chip {
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 10px;
+  text-transform: uppercase;
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+}
+
+.status-chip.online {
+  border-color: rgba(var(--green-rgb), 0.4);
+  color: var(--green);
+  background: rgba(var(--green-rgb), 0.07);
+}
+
+.status-chip.offline {
+  border-color: rgba(var(--red-rgb), 0.4);
+  color: var(--red);
+  background: rgba(var(--red-rgb), 0.07);
+}
+
+.inst-status.ok,
+.log-action.success,
+.off-cooldown {
+  color: var(--green);
+}
+
+.inst-status.fail,
+.log-action.error {
+  color: var(--red);
+}
+
+.inst-status.pending,
+.log-action.info {
+  color: var(--muted2);
+}
+
+.log-action.warning,
+.on-cooldown {
+  color: var(--yellow);
+}
+
+.conn-result,
+.ping-result {
+  font-size: 11px;
+  padding: 6px 10px;
+  display: none;
+}
+
+.conn-result.ok,
+.ping-result.ok {
+  display: block;
+  background: rgba(var(--green-rgb), 0.08);
+  color: var(--green);
+  border: 1px solid rgba(var(--green-rgb), 0.2);
+}
+
+.conn-result.fail,
+.ping-result.fail {
+  display: block;
+  background: rgba(var(--red-rgb), 0.08);
+  color: var(--red);
+  border: 1px solid rgba(var(--red-rgb), 0.2);
+}
+
+.version-badge {
+  background: rgba(var(--accent-rgb), 0.15);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-radius: 4px;
+  padding: 2px 8px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+}

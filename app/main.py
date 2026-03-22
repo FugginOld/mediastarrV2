@@ -38,7 +38,19 @@ ALLOWED_TYPES       = frozenset({"sonarr","radarr"})
 ALLOWED_LANGUAGES   = frozenset({"en"})
 ALLOWED_ACTIONS     = frozenset({"start","stop","run_now"})
 ALLOWED_SCHEMES     = frozenset({"http","https"})
-ALLOWED_THEMES      = frozenset({"dark","light","oled"})
+THEME_ALIASES       = {
+    "dark": "system",
+    "light": "system",
+    "oled": "system",
+    "system-dark": "system",
+    "system-light": "system",
+}
+ALLOWED_THEMES      = frozenset({
+    "system",
+    "github-inspired",
+    "discord-inspired",
+    "plex-inspired",
+})
 ALLOWED_SONARR_MODES= frozenset({"episode","season","series"})
 API_KEY_RE          = re.compile(r'^[A-Za-z0-9\-_]{8,128}$')
 NAME_RE             = re.compile(r'^[A-Za-z0-9 \-_]{1,40}$')
@@ -46,6 +58,12 @@ URL_MAX_LEN         = 256
 MAX_INSTANCES       = 20
 MIN_INTERVAL_SEC    = 900   # 15 minutes absolute minimum
 AUTH_PASSWORD       = os.environ.get("MEDIAHUNTER_PASSWORD", "").strip()
+
+def normalize_theme_name(theme: str | None) -> str:
+    value = str(theme or "").strip().lower()
+    if not value:
+        return "system"
+    return THEME_ALIASES.get(value, value)
 
 # ─── Discord Webhook ─────────────────────────────────────────────────────────
 DISCORD_COLORS = {
@@ -311,7 +329,7 @@ def _year(val):
 DEFAULT_CONFIG = {
     "setup_complete": False,
     "language": "en",
-    "theme": "dark",
+    "theme": "system",
     "timezone": OS_TIMEZONE,
     "instances": [],
     "hunt_missing_delay":    900,   # seconds (min 900 = 15 min)
@@ -1126,24 +1144,28 @@ def hunt_loop():
 @app.route("/")
 def index():
     if not CONFIG.get("setup_complete"): return redirect("/setup")
-    return render_template("index.html", auth_enabled=auth_enabled())
+    return render_template("index.html", auth_enabled=auth_enabled(), theme=normalize_theme_name(CONFIG.get("theme", "system")))
 
 @app.route("/setup")
-def setup_page(): return render_template("setup.html", auth_enabled=auth_enabled())
+def setup_page(): return render_template("setup.html", auth_enabled=auth_enabled(), theme=normalize_theme_name(CONFIG.get("theme", "system")))
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login_page():
     if not auth_enabled():
         return redirect("/")
+    requested_theme = normalize_theme_name(request.form.get("theme") if request.method == "POST" else request.args.get("theme", CONFIG.get("theme", "system")))
     if request.method == "POST":
         password = request.form.get("password", "")
         if secrets.compare_digest(password, AUTH_PASSWORD):
+            if requested_theme in ALLOWED_THEMES and CONFIG.get("theme") != requested_theme:
+                CONFIG["theme"] = requested_theme
+                save_config(CONFIG)
             session["auth_ok"] = True
             target = sanitize_next_url(request.form.get("next", "/"))
             return redirect(target)
-        return render_template("login.html", error="Invalid password", next_path=sanitize_next_url(request.form.get("next", "/")))
-    return render_template("login.html", error="", next_path=sanitize_next_url(request.args.get("next", "/")))
+        return render_template("login.html", error="Invalid password", next_path=sanitize_next_url(request.form.get("next", "/")), theme=requested_theme)
+    return render_template("login.html", error="", next_path=sanitize_next_url(request.args.get("next", "/")), theme=requested_theme)
 
 
 @app.route("/logout", methods=["POST"])
@@ -1194,8 +1216,11 @@ def api_setup_complete():
                 "name":nm.strip(),"url":url,"api_key":key,"enabled":True})
     if errors: return jsonify({"ok":False,"errors":errors}),400
     lang = "en"
+    theme = normalize_theme_name(d.get("theme", CONFIG.get("theme", "system")))
     CONFIG["instances"]      = validated
     CONFIG["language"]       = lang
+    if theme in ALLOWED_THEMES:
+        CONFIG["theme"] = theme
     CONFIG["setup_complete"] = True
 
     # Optional Discord config from wizard
@@ -1318,7 +1343,7 @@ def api_state():
             "scan_interval_days":   CONFIG.get("scan_interval_days",7),
             "dry_run":              CONFIG["dry_run"],
             "language":             CONFIG["language"],
-            "theme":                CONFIG.get("theme","dark"),
+            "theme":                normalize_theme_name(CONFIG.get("theme","system")),
             "timezone":             CONFIG.get("timezone","UTC"),
             "auto_start":           CONFIG["auto_start"],
             "instance_count":       len(CONFIG["instances"]),
@@ -1365,7 +1390,7 @@ def api_config():
         CONFIG["scan_interval_days"] = clamp_int(d["scan_interval_days"], 1, 365, 7)
     mode = safe_str(d.get("sonarr_search_mode",""), 10)
     if mode in ALLOWED_SONARR_MODES: CONFIG["sonarr_search_mode"] = mode
-    theme = safe_str(d.get("theme", CONFIG.get("theme","dark")), 10)
+    theme = normalize_theme_name(safe_str(d.get("theme", CONFIG.get("theme","system")), 32))
     if theme in ALLOWED_THEMES: CONFIG["theme"] = theme
     CONFIG["language"] = "en"
     tz = safe_str(d.get("timezone", CONFIG.get("timezone","UTC")), 50)
