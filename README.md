@@ -9,7 +9,7 @@ English documentation
 [![GitHub](https://img.shields.io/badge/GitHub-FugginOld%2FMediaHunter-orange?logo=github)](https://github.com/FugginOld/MediaHunter)
 [![Docker Hub](https://img.shields.io/docker/pulls/fugginold/mediahunter?label=Docker%20Pulls&logo=docker)](https://hub.docker.com/r/fugginold/mediahunter)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v1.0 Beta-ff6b2b)](https://github.com/FugginOld/MediaHunter/releases)
+[![Version](https://img.shields.io/badge/Version-v1.0_Beta-ff6b2b)](https://github.com/FugginOld/MediaHunter/releases)
 
 </div>
 
@@ -112,8 +112,6 @@ Settings → Discord:
 | 📊 Statistics report | Periodic report (interval configurable) |
 
 **Rate-limit protection:** Configurable minimum gap between same-type events (default 5 sec) — prevents Discord 429 errors.
-
-**Join the community:** [discord.gg/8Vb9cj4ksv](https://discord.gg/8Vb9cj4ksv)
 
 ## 🔐 Security Notes
 
