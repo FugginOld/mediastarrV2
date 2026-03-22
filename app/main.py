@@ -660,11 +660,54 @@ def should_search(iid:str, item_type:str, item_id:int, release_dt=None):
         return False, "cooldown"
     return True, ""
 
+
+def _has_download_event(client: ArrClient, arr_type: str, item_id: int, series_id=None) -> bool:
+    """Best-effort check whether search produced a grab/import event recently."""
+    for _ in range(4):
+        try:
+            data = client.get("history", params={"pageSize": 100, "sortKey": "date", "sortDirection": "descending"})
+            records = data.get("records", []) if isinstance(data, dict) else []
+        except Exception:
+            return False
+
+        now = datetime.utcnow()
+        for rec in records:
+            event_type = str(rec.get("eventType", "")).lower()
+            if event_type not in {"grabbed", "downloadfolderimported"}:
+                continue
+
+            rec_dt = _parse_release_dt(rec.get("date"))
+            if rec_dt is not None:
+                try:
+                    if (now - rec_dt.replace(tzinfo=None)).total_seconds() > 900:
+                        continue
+                except Exception:
+                    pass
+
+            if arr_type == "radarr":
+                if rec.get("movieId") == item_id:
+                    return True
+            else:
+                if rec.get("episodeId") == item_id:
+                    return True
+                if series_id is not None and rec.get("seriesId") == series_id:
+                    return True
+        # Give Arr a moment to persist history events from the triggered command.
+        time.sleep(2)
+    return False
+
 def do_search(client:ArrClient, iid:str, item_type:str, item_id:int,
-              title:str, command:dict, changed=None, year=None):
-    result = "dry_run" if CONFIG["dry_run"] else "triggered"
-    if not CONFIG["dry_run"]: client.post("command", command)
-    db.upsert_search(iid, item_type, item_id, title, result, changed, year)
+              title:str, command:dict, changed=None, year=None, series_id=None):
+    if CONFIG["dry_run"]:
+        result = "dry_run"
+    else:
+        client.post("command", command)
+        inst = next((i for i in CONFIG["instances"] if i["id"] == iid), {})
+        arr_type = inst.get("type", "")
+        found = _has_download_event(client, arr_type, item_id, series_id=series_id)
+        result = "downloaded" if found else "no_download"
+        if found:
+            db.upsert_search(iid, item_type, item_id, title, "downloaded", changed, year)
 
     # Discord notification
     inst = next((i for i in CONFIG["instances"] if i["id"] == iid), {})
@@ -788,10 +831,12 @@ def hunt_sonarr_instance(inst: dict):
                 command = {"name":"SeasonSearch","seriesId":series_id,"seasonNumber":ep.get("seasonNumber",0)}
             else:
                 command = {"name":"EpisodeSearch","episodeIds":[ep["id"]]}
-            do_search(client, iid, "episode", ep["id"], title, command,
-                      ep.get("series",{}).get("lastInfoSync"), year)
-            stats["missing_searched"] += 1; searched += 1
-            log_act(name, msg("missing"), title, "success")
+            result = do_search(client, iid, "episode", ep["id"], title, command,
+                               ep.get("series",{}).get("lastInfoSync"), year, series_id=series_id)
+            if result == "downloaded":
+                stats["missing_searched"] += 1
+                log_act(name, msg("missing"), title, "success")
+            searched += 1
             time.sleep(1.5)
     except Exception as e:
         log_act(name, msg("error"), str(e)[:200], "error")
@@ -816,10 +861,12 @@ def hunt_sonarr_instance(inst: dict):
                 if reason == "daily_limit": return
                 continue
             year = _year(ep.get("series",{}).get("year"))
-            do_search(client, iid, "episode_upgrade", ep["id"], title,
-                      {"name":"EpisodeSearch","episodeIds":[ep["id"]]}, year=year)
-            stats["upgrades_searched"] += 1; searched += 1
-            log_act(name, msg("upgrade"), title, "warning")
+            result = do_search(client, iid, "episode_upgrade", ep["id"], title,
+                               {"name":"EpisodeSearch","episodeIds":[ep["id"]]}, year=year, series_id=series_obj.get("id") or ep.get("seriesId"))
+            if result == "downloaded":
+                stats["upgrades_searched"] += 1
+                log_act(name, msg("upgrade"), title, "warning")
+            searched += 1
             time.sleep(1.5)
     except Exception as e:
         log_act(name, msg("error"), str(e)[:200], "error")
@@ -854,11 +901,13 @@ def hunt_radarr_instance(inst: dict):
                     log_act(name, msg("daily_limit",today=db.count_today(),limit=CONFIG["daily_limit"]), "", "warning")
                     return
                 continue
-            do_search(client, iid, "movie", movie["id"], title,
-                      {"name":"MoviesSearch","movieIds":[movie["id"]]},
-                      movie.get("lastInfoSync"), _year(movie.get("year")))
-            stats["missing_searched"] += 1; searched += 1
-            log_act(name, msg("missing"), title, "success")
+            result = do_search(client, iid, "movie", movie["id"], title,
+                               {"name":"MoviesSearch","movieIds":[movie["id"]]},
+                               movie.get("lastInfoSync"), _year(movie.get("year")))
+            if result == "downloaded":
+                stats["missing_searched"] += 1
+                log_act(name, msg("missing"), title, "success")
+            searched += 1
             time.sleep(1.5)
     except Exception as e:
         log_act(name, msg("error"), str(e)[:200], "error")
@@ -883,11 +932,13 @@ def hunt_radarr_instance(inst: dict):
                 stats[f"skipped_{reason}"] += 1
                 if reason == "daily_limit": return
                 continue
-            do_search(client, iid, "movie_upgrade", movie["id"], title,
-                      {"name":"MoviesSearch","movieIds":[movie["id"]]},
-                      year=_year(movie.get("year")))
-            stats["upgrades_searched"] += 1; searched += 1
-            log_act(name, msg("upgrade"), title, "warning")
+            result = do_search(client, iid, "movie_upgrade", movie["id"], title,
+                               {"name":"MoviesSearch","movieIds":[movie["id"]]},
+                               year=_year(movie.get("year")))
+            if result == "downloaded":
+                stats["upgrades_searched"] += 1
+                log_act(name, msg("upgrade"), title, "warning")
+            searched += 1
             time.sleep(1.5)
     except Exception as e:
         log_act(name, msg("error"), str(e)[:200], "error")

@@ -158,13 +158,13 @@ def get_history(limit: int = 300, service: str = "",
 
 
 def count_today() -> int:
-    """Number of real searches triggered today (UTC date)."""
+    """Number of successfully downloaded/grabbed searches today (UTC date)."""
     conn = _get_conn()
     today = datetime.utcnow().strftime("%Y-%m-%d")
     with _lock:
         row = conn.execute("""
             SELECT COUNT(*) AS n FROM search_history
-            WHERE searched_at LIKE ? AND result IN ('triggered', 'dry_run')
+            WHERE searched_at LIKE ? AND result IN ('downloaded')
         """, (today + "%",)).fetchone()
     return row["n"] if row else 0
 
