@@ -66,7 +66,10 @@
     .input.invalid{border-color:rgba(255,77,77,.5)}
     select.input{cursor:pointer}
     .field{margin-bottom:14px}
-    .field-row{display:grid;grid-template-columns:1fr auto;gap:8px}
+    .field-row{display:flex;gap:8px;align-items:center}
+    .field-row .input{flex:1;min-width:0}
+    .btn-clear{border-color:var(--muted2);color:var(--muted2)}
+    .btn-clear:hover{background:rgba(255,255,255,.06)}
     .conn-result{margin-top:7px;border-radius:6px}
 
     /* Instance list */
@@ -386,9 +389,15 @@ function updateInst(id, field, value) {
   if (field === 'type') {
     const prevType = inst.type;
     const prevDefault = defaultArrUrl(prevType);
+    const defaultNames = { sonarr: 'Sonarr', radarr: 'Radarr' };
     inst.type = value;
     if (!inst.url || inst.url.trim() === '' || inst.url === prevDefault) {
       inst.url = defaultArrUrl(value);
+    }
+    if (!inst.name || inst.name === defaultNames[prevType]) {
+      inst.name = defaultNames[value] || value;
+      const nameEl = document.getElementById(`name-${id}`);
+      if (nameEl) nameEl.value = inst.name;
     }
     inst.tested = false;
     return;
@@ -416,6 +425,7 @@ function renderInstances() {
     const urlPlaceholder = defaultArrUrl(inst.type);
     const testLabel = '🔌 Test';
     const saveLabel = '💾 Save';
+    const clearLabel = '✕ Clear';
     const removeLabel = '✕';
 
     return `
@@ -449,10 +459,11 @@ function renderInstances() {
         <div class="field" style="grid-column:1/-1">
           <label class="label">API Key <span style="color:var(--muted)">· Settings → General → Security</span></label>
           <div class="field-row">
-            <input class="input" type="password" placeholder="32-character API key" autocomplete="off"
+            <input class="input" type="password" id="key-${inst.id}" placeholder="32-character API key" autocomplete="off"
               oninput="updateInst('${inst.id}','api_key',this.value)">
             <button class="btn btn-test" onclick="testInst('${inst.id}')">${testLabel}</button>
             <button class="btn btn-save" id="save-btn-${inst.id}" onclick="saveInstWizard('${inst.id}')">${saveLabel}</button>
+            <button class="btn btn-clear" onclick="clearInstWizard('${inst.id}')">${clearLabel}</button>
           </div>
           <div id="save-msg-${inst.id}" class="inst-save-msg"></div>
         </div>
@@ -492,8 +503,10 @@ async function testInst(id) {
     instances.forEach(inst => {
       const nameEl = document.getElementById(`name-${inst.id}`);
       const urlEl  = document.getElementById(`url-${inst.id}`);
+      const keyEl  = document.getElementById(`key-${inst.id}`);
       if (nameEl && nameEl.value && !inst.name) inst.name = nameEl.value;
       if (urlEl  && urlEl.value  && !inst.url)  inst.url  = urlEl.value;
+      if (keyEl  && keyEl.value)                inst.api_key = keyEl.value;
     });
   }, 0);
 }
@@ -505,7 +518,7 @@ async function saveInstWizard(id) {
   // Sync current input values into the instances array
   const nameEl = document.getElementById(`name-${id}`);
   const urlEl  = document.getElementById(`url-${id}`);
-  const keyEl  = document.querySelector(`#ic-${id} input[type="password"]`);
+  const keyEl  = document.getElementById(`key-${id}`);
   const typeEl = document.getElementById(`type-select-${id}`);
   if (nameEl) inst.name    = nameEl.value.trim();
   if (urlEl)  inst.url     = urlEl.value.trim();
@@ -551,6 +564,17 @@ async function saveInstWizard(id) {
   }
 }
 
+
+function clearInstWizard(id) {
+  const inst = instances.find(i => i.id === id);
+  if (inst) { inst.api_key = ''; inst.tested = false; }
+  const keyEl    = document.getElementById(`key-${id}`);
+  const statusEl = document.getElementById(`status-${id}`);
+  const msgEl    = document.getElementById(`save-msg-${id}`);
+  if (keyEl)    keyEl.value = '';
+  if (statusEl) { statusEl.textContent = '○ not tested'; statusEl.className = 'inst-status pending'; }
+  if (msgEl)    { msgEl.textContent = ''; }
+}
 
 function goToDiscord() {
   if (instances.length === 0) {
