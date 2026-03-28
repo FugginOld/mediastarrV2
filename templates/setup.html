@@ -229,7 +229,7 @@
         <div id="done-title" style="font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:6px">All set!</div>
         <div id="done-sub" style="text-align:center;color:var(--muted2);font-size:11px;margin-bottom:22px">Nothing starts automatically. Review your settings, then run the initial DB scan when you are ready.</div>
         <div class="summary-box" id="summary"></div>
-        <div class="done-note">Next step: open the dashboard, confirm your instances and other settings, then click <strong>Initial DB Scan</strong>. The hunt loop will stay stopped until you press <strong>Start</strong>.</div>
+        <div class="done-note">Next step: open the dashboard, verify your instances and settings, then run <strong>Initial DB Scan</strong>. After the scan finishes, press <strong>Start</strong> to begin hunting. Until then, the hunt loop remains stopped.</div>
         {% if auth_enabled and default_pw %}
         <div class="pw-warn">
           <span>⚠</span>
@@ -620,6 +620,19 @@ async function finishSetup() {
   const btnOrigText = '✓ Finish setup';
   if (!btn) return;
   errEl.style.display = 'none';
+
+  // Pull latest field values from the DOM so setup always submits what the user sees.
+  instances.forEach(inst => {
+    const nameEl = document.getElementById(`name-${inst.id}`);
+    const urlEl  = document.getElementById(`url-${inst.id}`);
+    const keyEl  = document.getElementById(`key-${inst.id}`);
+    const typeEl = document.getElementById(`type-select-${inst.id}`);
+    if (nameEl) inst.name = nameEl.value.trim();
+    if (urlEl) inst.url = urlEl.value.trim();
+    if (keyEl) inst.api_key = keyEl.value.trim();
+    if (typeEl) inst.type = typeEl.value;
+  });
+
   if (instances.length === 0) {
     errEl.textContent = 'At least one instance required.';
     errEl.style.display = 'block'; return;

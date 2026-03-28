@@ -1748,7 +1748,7 @@ function renderHistory() {
   const svc = document.getElementById('hist-svc')?.value || '';
   const cd  = document.getElementById('hist-cd')?.value || '';
   const filtered = historyData.filter(h => {
-    if (svc && h.service !== svc) return false;
+    if (svc && h.instance_type !== svc) return false;
     if (cd  === '1' && !h.on_cooldown) return false;
     if (cd  === '0' &&  h.on_cooldown) return false;
     if (q   && !h.title?.toLowerCase().includes(q) && !String(h.item_id).includes(q)) return false;
@@ -1770,7 +1770,7 @@ function renderHistory() {
     filtered.map(h => `
     <div class="hist-row">
       <span class="log-ts">${escHtml(h.searched_at?.split('T')[1]?.slice(0,5)||'—')}</span>
-      <span class="log-svc ${escHtml(String(h.service || 'system'))}">${escHtml(String(h.service || 'system'))}</span>
+      <span class="log-svc ${escHtml(String(h.instance_type || 'system'))}">${escHtml(String(h.instance_name || h.service || 'system'))}</span>
       <span class="hist-type">${escHtml(String(h.item_type || 'unknown'))}</span>
       <span class="hist-year">${escHtml(String(h.release_year||'—'))}</span>
       <span class="hist-title" title="${escHtml(String(h.title||h.item_id||''))}">${escHtml(String(h.title||h.item_id||''))}</span>

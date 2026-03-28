@@ -1361,21 +1361,33 @@ def api_setup_complete():
     if len(instances) > MAX_INSTANCES:
         return jsonify({"ok":False,"errors":[f"Maximum {MAX_INSTANCES} instances"]}),400
     errors=[]; validated=[]
-    req_lang = "en"
-    is_de = False
     for i, inst in enumerate(instances):
+        inst_errors = []
         nm    = safe_str(inst.get("name",""),40).strip()
         itype = safe_str(inst.get("type",""),10)
         url   = safe_str(inst.get("url",""),URL_MAX_LEN)
         key   = safe_str(inst.get("api_key",""),128)
         label = f"#{i+1} ({nm or '?'})"
-        ok,e=validate_name(nm);    errors+=[f"{label} {'Name' if is_de else 'Name'}: {e}"]    if not ok else []
-        if itype not in ALLOWED_TYPES: errors.append(f"{label}: Unknown type '{itype}'")
-        ok,e=validate_url(url);    errors+=[f"{label} URL: {e}"]     if not ok else []
-        ok,e=validate_api_key(key);errors+=[f"{label} API Key: {e}"] if not ok else []
-        if not errors:
-            validated.append({"id":inst.get("id") or make_id(),"type":itype,
-                "name":nm.strip(),"url":url,"api_key":key,"enabled":True})
+        ok,e=validate_name(nm)
+        if not ok:
+            inst_errors.append(f"{label} Name: {e}")
+        if itype not in ALLOWED_TYPES:
+            inst_errors.append(f"{label}: Unknown type '{itype}'")
+        ok,e=validate_url(url)
+        if not ok:
+            inst_errors.append(f"{label} URL: {e}")
+        ok,e=validate_api_key(key)
+        if not ok:
+            inst_errors.append(f"{label} API Key: {e}")
+
+        if inst_errors:
+            errors.extend(inst_errors)
+            continue
+
+        raw_id = safe_str(inst.get("id", ""), 64).strip()
+        inst_id = raw_id if raw_id and not raw_id.startswith("tmp_") else make_id()
+        validated.append({"id":inst_id,"type":itype,
+            "name":nm.strip(),"url":url,"api_key":key,"enabled":True})
     if errors: return jsonify({"ok":False,"errors":errors}),400
     lang = "en"
     theme = normalize_theme_name(d.get("theme", CONFIG.get("theme", "system")))
@@ -1403,6 +1415,7 @@ def api_setup_complete():
             dc["rate_limit_cooldown"] = clamp_int(dc_in.get("rate_limit_cooldown", 5), 1, 300, 5)
 
     save_config(CONFIG); _ensure_inst_stats()
+    log_act("System", "Setup completed", f"{len(validated)} instance(s) saved", "success")
     STOP_EVENT.set()
     STATE["running"] = False
     STATE["next_run"] = None
@@ -1453,6 +1466,11 @@ def api_instances_update(inst_id:str):
         key=safe_str(d["api_key"],128); ok,e=validate_api_key(key)
         if not ok: return jsonify({"ok":False,"error":f"API Key: {e}"}),400
         inst["api_key"] = key
+    if "type" in d:
+        itype = safe_str(d.get("type", ""), 10)
+        if itype not in ALLOWED_TYPES:
+            return jsonify({"ok":False,"error":f"Unknown type '{itype}'"}),400
+        inst["type"] = itype
     if "enabled" in d: inst["enabled"] = bool(d["enabled"])
     save_config(CONFIG); return jsonify({"ok":True})
 
@@ -1598,9 +1616,15 @@ def api_history():
     now=datetime.utcnow()
     for r in rows:
         ts=datetime.fromisoformat(r["searched_at"]); ago=now-ts; mins=int(ago.total_seconds()/60)
-        r["ago_label"]=(f"vor {mins}min" if mins<60 else f"vor {mins//60}h" if mins<1440 else f"vor {mins//1440}d")
-        r["expires_label"]=(ts+timedelta(days=cd_days)).strftime("%d.%m. %H:%M")
-        r["instance_name"]=next((i["name"] for i in CONFIG["instances"] if i["id"]==r["service"]),r["service"])
+        r["ago_label"]=(f"{mins}m ago" if mins<60 else f"{mins//60}h ago" if mins<1440 else f"{mins//1440}d ago")
+        r["expires_label"]=(ts+timedelta(days=cd_days)).strftime("%Y-%m-%d %H:%M")
+        inst = next((i for i in CONFIG["instances"] if i["id"] == r["service"]), None)
+        if inst:
+            r["instance_name"] = inst.get("name", r["service"])
+            r["instance_type"] = inst.get("type", "")
+        else:
+            r["instance_name"] = r["service"]
+            r["instance_type"] = ""
     return jsonify({"ok":True,"count":len(rows),"history":rows})
 
 @app.route("/api/history/stats")
@@ -1619,7 +1643,15 @@ def api_history_clear():
 
 @app.route("/api/history/clear/<inst_id>", methods=["POST"])
 def api_history_clear_inst(inst_id:str):
-    n = db.clear_service(inst_id)
+    targets = []
+    if inst_id in ALLOWED_TYPES:
+        targets = [i["id"] for i in CONFIG["instances"] if i.get("type") == inst_id]
+    else:
+        targets = [inst_id]
+
+    n = 0
+    for target in targets:
+        n += db.clear_service(target)
     _today_count(refresh=True)
     log_act("System", f"DB cleared ({inst_id})", f"{n} entries", "warning")
     return jsonify({"ok":True,"removed":n})
