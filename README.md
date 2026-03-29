@@ -128,7 +128,7 @@ open http://localhost:7979
 
 ### Theme Migration Note
 
-- Existing configs using legacy theme values (`dark`, `light`, or `oled`) are automatically mapped to `system`.
+- Existing configs using legacy theme values (`dark`, `light`, `oled`, `system-dark`, `system-light`) are automatically normalized to `system`.
 - No manual migration is required.
 - You can switch anytime to `GitHub Inspired`, `Discord Inspired`, or `Plex Inspired` from the UI theme picker.
 
@@ -155,7 +155,12 @@ services:
 
 If you expose mediahunter beyond a trusted LAN, set `MEDIAHUNTER_PASSWORD` and place it behind a reverse proxy or firewall.
 
-When `MEDIAHUNTER_PASSWORD` is set, the dashboard requires login and browser write requests are CSRF-protected automatically.
+When `MEDIAHUNTER_PASSWORD` is set:
+- Dashboard access requires authentication.
+- Operational API routes require authentication.
+- Browser write requests are CSRF-protected.
+- Login is password-only in env-password mode (configured username is ignored).
+- Setup bootstrap endpoints (`/api/setup/*`) remain reachable for first-run provisioning.
 
 ## 📦 Unraid
 
@@ -163,7 +168,7 @@ Community Apps template: [`mediahunter.xml`](mediahunter.xml)
 
 Manual: Repository `fugginold/mediahunter:latest`, Port `7979:7979`, Volume `/mnt/user/appdata/mediahunter` → `/data`.
 
-Optional: set `MEDIAHUNTER_PASSWORD` in the template to require login for the WebUI and API.
+Optional: set `MEDIAHUNTER_PASSWORD` in the template to require login for the WebUI and operational API routes.
 
 ## 🔔 Discord Notifications
 
@@ -183,6 +188,7 @@ Settings → Discord:
 ## 🔐 Security Notes
 
 - If `MEDIAHUNTER_PASSWORD` is set, dashboard access requires login and browser write requests use CSRF protection.
+- Setup bootstrap endpoints (`/api/setup/*`) are intentionally reachable for first-run setup; do not expose the service directly to untrusted networks.
 - The setup connection test accepts only local/private/internal Sonarr or Radarr targets. Public internet hosts are rejected intentionally.
 - `config.json` in your data directory contains your Arr API keys. Treat the `/data` path as sensitive.
 - API responses never expose stored API keys or Discord webhook URL values.
@@ -210,7 +216,9 @@ Settings → Discord:
 
 - The dashboard, setup wizard, and login screen now share one consistent theme system.
 - `System` theme follows your OS/browser preference (`prefers-color-scheme`) automatically.
-- Theme choices are available directly in the UI with color swatches and saved to config.
+- Theme choices are available directly in the UI with color swatches.
+- Frontend theme preference is persisted in browser localStorage (`mh-theme`).
+- Backend theme config is updated during setup and auth flows, and legacy values are normalized server-side.
 - Legacy theme values (`dark`, `light`, `oled`) are mapped automatically to `system` for backward compatibility.
 - Frontend theme and UI styles are maintained in:
   - `frontend/src/styles/theme-system.css`
