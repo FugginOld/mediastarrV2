@@ -748,7 +748,7 @@ def sec_headers(r):
 @app.before_request
 def require_auth():
     public_endpoints = {"login_page", "api_auth_csrf", "api_auth_login", "api_setup_ping", "api_setup_discord_test", "api_setup_complete", "api_setup_reset"}
-    if request.path.startswith("/static/"):
+    if request.path.startswith("/static/") or request.path.startswith("/assets/"):
         return None
     if request.endpoint in public_endpoints:
         pass
