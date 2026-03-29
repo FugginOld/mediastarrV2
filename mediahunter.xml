@@ -7,8 +7,9 @@
        ══════════════════════════════════════════════════════ -->
 
   <Name>mediahunter</Name>
-  <Repository>fugginold/mediahunter:latest</Repository>
-  <Registry>https://hub.docker.com/r/fugginold/mediahunter</Registry>
+  <!-- Docker Hub image is not available; build locally from the Dockerfile in the repository. -->
+  <Repository>mediahunter:latest</Repository>
+  <Registry>local build only</Registry>
   <GitHub>https://github.com/FugginOld/MediaHunter</GitHub>
   <Branch>main</Branch>
 
@@ -22,19 +23,21 @@
     Automated missing-content and quality-upgrade search for Sonarr and Radarr.
 
     Features:
-    - Multiple Sonarr/Radarr instances with custom names (HD, 4K, Anime …)
-    - Only Sonarr, only Radarr, or any mix — fully optional
-    - SQLite search history with per-item cooldown (configurable in days)
-    - Configurable daily search limit
-    - Random jitter on hunt intervals (minimum 15 minutes enforced)
-    - Discord webhook notifications with per-event toggles and rate-limit protection
+    - Multiple Sonarr/Radarr instances with custom names (HD, 4K, Anime, etc)
+    - Any combination of Sonarr and Radarr, fully optional
+    - SQLite search history and persistent media queue
+    - Per-item cooldown (1–365 days), configurable
+    - Configurable daily search limit (0 = unlimited)
+    - Random jitter on scan intervals (min. 15 min enforced)
+    - Discord webhook notifications (6 events + stats + rate-limit protection)
     - Periodic statistics report to Discord
-    - Sonarr search granularity: episode / season / full series
+    - Sonarr search granularity: episode / season / series
     - Upgrade search on/off toggle
-    - Dark / Light / OLED themes
-    - English-only UI + logs
-    - First-run browser wizard — no config file editing required
-    - Optional dashboard/API password protection + CSRF-protected browser writes
+    - Modern 4-theme UI: System, GitHub Inspired, Discord Inspired, Plex Inspired
+    - English-only UI, logs, and Discord messages
+    - React + TypeScript frontend served by Flask
+    - First-run browser wizard (no config editing required)
+    - Optional dashboard/API password protection, CSRF-protected browser writes
   </Overview>
   <Category>Downloaders: MediaApp:Other</Category>
   <WebUI>http://[IP]:[PORT:7979]/</WebUI>
