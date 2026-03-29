@@ -126,11 +126,10 @@ docker compose up -d
 open http://localhost:7979
 ```
 
-### Theme Migration Note
+### Theme Note
 
-- Existing configs using legacy theme values (`dark`, `light`, `oled`, `system-dark`, `system-light`) are automatically normalized to `system`.
-- No manual migration is required.
-- You can switch anytime to `GitHub Inspired`, `Discord Inspired`, or `Plex Inspired` from the UI theme picker.
+- Available themes are `System`, `GitHub Inspired`, `Discord Inspired`, and `Plex Inspired`.
+- You can switch themes anytime from the UI theme picker.
 
 ## 🐳 Docker Compose
 
@@ -218,8 +217,7 @@ Settings → Discord:
 - `System` theme follows your OS/browser preference (`prefers-color-scheme`) automatically.
 - Theme choices are available directly in the UI with color swatches.
 - Frontend theme preference is persisted in browser localStorage (`mh-theme`).
-- Backend theme config is updated during setup and auth flows, and legacy values are normalized server-side.
-- Legacy theme values (`dark`, `light`, `oled`) are mapped automatically to `system` for backward compatibility.
+- Backend theme config is updated during setup and auth flows.
 - Frontend theme and UI styles are maintained in:
   - `frontend/src/styles/theme-system.css`
   - `frontend/src/styles/base.css`

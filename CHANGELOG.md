@@ -28,7 +28,6 @@
 - Project is English-only across UI, logs, API messages, and documentation.
 - UI theme system updated to four options: System (auto light/dark), GitHub Inspired, Discord Inspired, and Plex Inspired.
 - Theme selection is now consistent across dashboard, setup wizard, and login page.
-- Legacy theme names (`dark`, `light`, `oled`) now normalize to `system`.
 - Default timezone now follows the OS timezone while remaining user-configurable.
 - Frontend styling was reorganized into shared CSS assets (`theme-system.css`, `auth-common.css`, `ui-primitives.css`, `status-primitives.css`) for easier maintenance.
 - Setup wizard language selection was removed; setup is now English-only and starts directly with instance configuration.

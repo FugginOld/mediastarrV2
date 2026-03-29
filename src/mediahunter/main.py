@@ -52,13 +52,6 @@ ALLOWED_TYPES       = frozenset({"sonarr","radarr"})
 ALLOWED_LANGUAGES   = frozenset({"en"})
 ALLOWED_ACTIONS     = frozenset({"start","stop","run_now"})
 ALLOWED_SCHEMES     = frozenset({"http","https"})
-THEME_ALIASES       = {
-    "dark": "system",
-    "light": "system",
-    "oled": "system",
-    "system-dark": "system",
-    "system-light": "system",
-}
 ALLOWED_THEMES      = frozenset({
     "system",
     "github-inspired",
@@ -81,7 +74,7 @@ def normalize_theme_name(theme: str | None) -> str:
     value = str(theme or "").strip().lower()
     if not value:
         return "system"
-    return THEME_ALIASES.get(value, value)
+    return value if value in ALLOWED_THEMES else "system"
 
 # ─── Discord Webhook ─────────────────────────────────────────────────────────
 DISCORD_COLORS = {
