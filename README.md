@@ -69,7 +69,8 @@ project-root/
 ├── docs/         # Documentation
 ├── scripts/      # Utility scripts
 ├── static/       # Shared frontend styles/assets
-├── templates/    # HTML templates
+├── frontend/     # React + TypeScript source
+├── frontend-dist/# Production React build served by Flask
 ├── .gitignore
 ├── README.md
 └── requirements.txt
@@ -83,6 +84,28 @@ The VS Code workspace folder includes:
 ├── extensions.json  # Recommended extensions
 ├── launch.json      # Debug configuration for Flask
 └── tasks.json       # Install/run/test tasks
+```
+
+## ⚛️ React Frontend Scaffold
+
+A Phase 1 React + TypeScript scaffold is available in:
+
+```text
+frontend/
+```
+
+Current status:
+
+- Router and base pages (`/`, `/setup`, `/login`) are scaffolded.
+- React Query provider and API client are wired to `/api/state`.
+- Backend remains source of truth in `src/mediahunter/main.py`.
+
+To start frontend work after installing Node.js + npm:
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
 ## 🚀 Quick Start

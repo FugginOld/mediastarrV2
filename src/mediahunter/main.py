@@ -18,11 +18,28 @@ import os, re, json, time, logging, threading, requests, random, string, zoneinf
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
-from flask import Flask, render_template, jsonify, request, redirect, session, url_for
+from flask import Flask, jsonify, request, redirect, session, url_for, send_from_directory
 from collections import deque
+from werkzeug.security import check_password_hash, generate_password_hash
 from . import db
 
-app = Flask(__name__, template_folder='../../templates', static_folder='../../static')
+app = Flask(__name__, static_folder='../../static')
+
+# Detect if React frontend build exists
+REACT_BUILD_PATH = Path(__file__).resolve().parents[2] / "frontend-dist"
+SERVE_REACT_SPA = REACT_BUILD_PATH.exists()
+
+
+def serve_spa_index():
+    if not SERVE_REACT_SPA:
+        return jsonify({
+            "ok": False,
+            "error": "React frontend build not found",
+            "hint": "Run npm run build in frontend/ to create frontend-dist/",
+        }), 503
+    return send_from_directory(str(REACT_BUILD_PATH), "index.html")
+
+
 app.config["SECRET_KEY"] = os.environ.get("MEDIAHUNTER_SESSION_SECRET") or secrets.token_hex(32)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -51,6 +68,7 @@ ALLOWED_THEMES      = frozenset({
 ALLOWED_SONARR_MODES= frozenset({"episode","season","series"})
 API_KEY_RE          = re.compile(r'^[A-Za-z0-9\-_]{8,128}$')
 NAME_RE             = re.compile(r'^[A-Za-z0-9 \-_]{1,40}$')
+USERNAME_RE         = re.compile(r'^[A-Za-z0-9._\-]{3,32}$')
 URL_MAX_LEN         = 256
 MAX_INSTANCES       = 20
 MIN_INTERVAL_SEC    = 900   # 15 minutes absolute minimum
@@ -343,6 +361,10 @@ DEFAULT_CONFIG = {
     "jitter_max":            300,   # max random seconds added to interval (0=off)
     "dry_run":    False,
     "auto_start": False,
+    "auth": {
+        "username": "admin",
+        "password_hash": "",
+    },
     "last_boot_version": "",
     "last_boot_build_id": "",
     # Sonarr search granularity: "episode" | "season" | "series"
@@ -372,6 +394,15 @@ def load_config() -> dict:
         try:
             raw = json.loads(CFG_FILE.read_text())
             m = DEFAULT_CONFIG.copy(); m.update(raw)
+            auth_cfg = m.get("auth")
+            if not isinstance(auth_cfg, dict):
+                auth_cfg = {}
+            auth_user = str(auth_cfg.get("username", "admin") or "").strip()[:32] or "admin"
+            auth_pw_hash = str(auth_cfg.get("password_hash", "") or "")[:512]
+            m["auth"] = {
+                "username": auth_user,
+                "password_hash": auth_pw_hash,
+            }
             for inst in m.get("instances",[]):
                 if "id" not in inst: inst["id"] = make_id()
             return m
@@ -389,7 +420,24 @@ def save_config(cfg: dict):
 
 
 def auth_enabled() -> bool:
-    return bool(AUTH_PASSWORD)
+    return bool(AUTH_PASSWORD) or bool(CONFIG.get("auth", {}).get("password_hash", "").strip())
+
+
+def auth_username() -> str:
+    return safe_str(CONFIG.get("auth", {}).get("username", "admin"), 32).strip() or "admin"
+
+
+def _credentials_ok(username: str, password: str) -> bool:
+    if not auth_enabled():
+        return True
+    if AUTH_PASSWORD:
+        return secrets.compare_digest(password, AUTH_PASSWORD)
+    cfg = CONFIG.get("auth", {})
+    expected_user = safe_str(cfg.get("username", "admin"), 32).strip() or "admin"
+    pw_hash = safe_str(cfg.get("password_hash", ""), 512)
+    if not pw_hash:
+        return False
+    return secrets.compare_digest(username, expected_user) and check_password_hash(pw_hash, password)
 
 
 def is_authenticated() -> bool:
@@ -408,14 +456,6 @@ def get_csrf_token() -> str:
         token = secrets.token_hex(32)
         session["csrf_token"] = token
     return token
-
-
-@app.context_processor
-def inject_template_context():
-    return {
-        "auth_enabled": auth_enabled(),
-        "csrf_token": get_csrf_token(),
-    }
 
 
 def _bootstrap_host() -> str:
@@ -670,6 +710,25 @@ def validate_name(name: str):
     if not NAME_RE.match(name.strip()): return False,"Invalid characters or too long (max 40)"
     return True,""
 
+
+def validate_username(name: str):
+    if not name or not isinstance(name, str):
+        return False, "Username is missing"
+    clean = name.strip()
+    if not USERNAME_RE.match(clean):
+        return False, "Use 3-32 chars: A-Z a-z 0-9 . _ -"
+    return True, ""
+
+
+def validate_password_value(password: str):
+    if not password or not isinstance(password, str):
+        return False, "Password is missing"
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters"
+    if len(password) > 128:
+        return False, "Password too long"
+    return True, ""
+
 def clamp_int(val, lo, hi, default):
     try: return max(lo, min(hi, int(val)))
     except: return default
@@ -695,15 +754,14 @@ def sec_headers(r):
 
 @app.before_request
 def require_auth():
-    if not auth_enabled():
-        pass
+    public_endpoints = {"login_page", "api_auth_csrf", "api_auth_login", "api_setup_ping", "api_setup_discord_test", "api_setup_complete", "api_setup_reset"}
     if request.path.startswith("/static/"):
         return None
-    if request.endpoint in {"login_page", "logout"}:
+    if request.endpoint in public_endpoints:
         pass
     elif auth_enabled() and not is_authenticated():
         if request.path.startswith("/api/"):
-            return jsonify({"ok": False, "error": "Authentifizierung erforderlich"}), 401
+            return jsonify({"ok": False, "error": "Authentication required"}), 401
         return redirect(url_for("login_page", next=sanitize_next_url(request.full_path or request.path)))
     if request.method in {"POST", "PATCH", "DELETE"} and request.endpoint not in {"logout"}:
         if not validate_csrf_request():
@@ -716,8 +774,18 @@ def require_auth():
 
 @app.errorhandler(400)
 def e400(e): return jsonify({"ok":False,"error":"Invalid request"}),400
+@app.route("/assets/<path:filename>")
+def react_assets(filename):
+    if SERVE_REACT_SPA:
+        return send_from_directory(str(REACT_BUILD_PATH / "assets"), filename)
+    return jsonify({"ok": False, "error": "Not found"}), 404
+
 @app.errorhandler(404)
-def e404(e): return jsonify({"ok":False,"error":"Not found"}),404
+def e404(e):
+    """For React SPA, serve index.html for non-API routes to enable client-side routing."""
+    if not request.path.startswith("/api/"):
+        return serve_spa_index()
+    return jsonify({"ok":False,"error":"Not found"}),404
 @app.errorhandler(405)
 def e405(e): return jsonify({"ok":False,"error":"Method not allowed"}),405
 @app.errorhandler(500)
@@ -1302,29 +1370,17 @@ def hunt_loop():
 # ─── Flask Routes ─────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
-    if not CONFIG.get("setup_complete"): return redirect("/setup")
-    return render_template("index.html", auth_enabled=auth_enabled(), theme=normalize_theme_name(CONFIG.get("theme", "system")), default_pw=(AUTH_PASSWORD == DEFAULT_PASSWORD))
+    return serve_spa_index()
 
 @app.route("/setup")
-def setup_page(): return render_template("setup.html", auth_enabled=auth_enabled(), theme=normalize_theme_name(CONFIG.get("theme", "system")), default_pw=(AUTH_PASSWORD == DEFAULT_PASSWORD))
+def setup_page(): return serve_spa_index()
 
 
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login", methods=["GET"])
 def login_page():
     if not auth_enabled():
         return redirect("/")
-    requested_theme = normalize_theme_name(request.form.get("theme") if request.method == "POST" else request.args.get("theme", CONFIG.get("theme", "system")))
-    if request.method == "POST":
-        password = request.form.get("password", "")
-        if secrets.compare_digest(password, AUTH_PASSWORD):
-            if requested_theme in ALLOWED_THEMES and CONFIG.get("theme") != requested_theme:
-                CONFIG["theme"] = requested_theme
-                save_config(CONFIG)
-            session["auth_ok"] = True
-            target = sanitize_next_url(request.form.get("next", "/"))
-            return redirect(target)
-        return render_template("login.html", error="Invalid password", next_path=sanitize_next_url(request.form.get("next", "/")), theme=requested_theme)
-    return render_template("login.html", error="", next_path=sanitize_next_url(request.args.get("next", "/")), theme=requested_theme)
+    return serve_spa_index()
 
 
 @app.route("/logout", methods=["POST"])
@@ -1348,6 +1404,41 @@ def api_setup_ping():
         ok, ver, detail = ArrClient(itype, url, key).ping()
         return jsonify({"ok":ok,"version":ver,"msg":detail})
     except: return jsonify({"ok":False,"msg":"Connection failed"})
+
+@app.route("/api/setup/discord/test", methods=["POST"])
+def api_setup_discord_test():
+    """Test a Discord webhook URL during setup (before saving to config)."""
+    d = request.get_json(silent=True) or {}
+    webhook_url = safe_str(d.get("webhook_url", ""), 512).strip()
+    
+    if not webhook_url:
+        return jsonify({"ok": False, "error": "Webhook URL is required"}), 400
+    
+    ok, err = validate_discord_webhook_url(webhook_url)
+    if not ok:
+        return jsonify({"ok": False, "error": f"Invalid URL: {err}"}), 400
+    
+    # Build test embed
+    test_embed = {
+        "title": "🔔 MediaHunter Test",
+        "description": "If you see this, the webhook is working properly.\nThis is a test from setup.",
+        "color": 0x7289da,  # Discord blurple
+        "footer": {"text": "MediaHunter v1.0 Beta · Setup Test"},
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+    
+    try:
+        r = requests.post(
+            webhook_url,
+            json={"embeds": [test_embed]},
+            timeout=CONFIG.get("request_timeout", 30)
+        )
+        if r.status_code in (200, 204):
+            return jsonify({"ok": True})
+        else:
+            return jsonify({"ok": False, "error": f"Discord returned HTTP {r.status_code}"}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Connection failed: {str(e)}"}), 400
 
 @app.route("/api/setup/complete", methods=["POST"])
 def api_setup_complete():
@@ -1386,6 +1477,20 @@ def api_setup_complete():
         validated.append({"id":inst_id,"type":itype,
             "name":nm.strip(),"url":url,"api_key":key,"enabled":True})
     if errors: return jsonify({"ok":False,"errors":errors}),400
+
+    auth_in = d.get("auth")
+    if isinstance(auth_in, dict) and not AUTH_PASSWORD:
+        auth_user = safe_str(auth_in.get("username", ""), 32).strip()
+        auth_pass = safe_str(auth_in.get("password", ""), 128)
+        ok, err = validate_username(auth_user)
+        if not ok:
+            return jsonify({"ok": False, "errors": [f"Username: {err}"]}), 400
+        ok, err = validate_password_value(auth_pass)
+        if not ok:
+            return jsonify({"ok": False, "errors": [f"Password: {err}"]}), 400
+        CONFIG.setdefault("auth", {})["username"] = auth_user
+        CONFIG.setdefault("auth", {})["password_hash"] = generate_password_hash(auth_pass)
+
     lang = "en"
     theme = normalize_theme_name(d.get("theme", CONFIG.get("theme", "system")))
     CONFIG["instances"]      = validated
@@ -1665,6 +1770,47 @@ def api_timezones():
         "Asia/Dubai","Australia/Sydney","Pacific/Auckland",
     ]
     return jsonify({"ok":True,"timezones":common})
+
+
+@app.route("/api/auth/csrf")
+def api_auth_csrf():
+    """Return a CSRF token for SPA clients using session cookies."""
+    return jsonify({
+        "ok": True,
+        "csrf_token": get_csrf_token(),
+        "auth_enabled": auth_enabled(),
+        "authenticated": is_authenticated(),
+        "setup_complete": bool(CONFIG.get("setup_complete")),
+        "theme": normalize_theme_name(CONFIG.get("theme", "system")),
+        "auth_username": auth_username(),
+        "env_password_locked": bool(AUTH_PASSWORD),
+    })
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def api_auth_login():
+    """Authenticate SPA clients using JSON credentials."""
+    if not auth_enabled():
+        return jsonify({"ok": True, "target": "/"})
+    d = request.get_json(silent=True) or {}
+    username = safe_str(d.get("username", ""), 64).strip()
+    password = safe_str(d.get("password", ""), 256)
+    requested_theme = normalize_theme_name(d.get("theme", CONFIG.get("theme", "system")))
+    if _credentials_ok(username, password):
+        if requested_theme in ALLOWED_THEMES and CONFIG.get("theme") != requested_theme:
+            CONFIG["theme"] = requested_theme
+            save_config(CONFIG)
+        session["auth_ok"] = True
+        target = sanitize_next_url(d.get("next", "/"))
+        return jsonify({"ok": True, "target": target})
+    return jsonify({"ok": False, "error": "Invalid credentials"}), 401
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def api_auth_logout():
+    """Logout endpoint for SPA clients."""
+    session.clear()
+    return jsonify({"ok": True})
 
 # ── Discord test endpoint ─────────────────────────────────────────────────────
 @app.route("/api/discord/test", methods=["POST"])

@@ -13,8 +13,8 @@ RUN pip install --no-cache-dir flask requests gunicorn
 
 COPY app/       ./app/
 COPY src/       ./src/
-COPY templates/ ./templates/
 COPY static/    ./static/
+COPY frontend-dist/ ./frontend-dist/
 
 VOLUME ["/data"]
 EXPOSE 7979
