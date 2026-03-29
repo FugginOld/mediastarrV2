@@ -56,6 +56,35 @@ Queue and cooldown behavior:
 - Items older than cooldown window can bypass cooldown checks and be searched again.
 - Expired history entries are purged each cycle so items can re-enter search flow.
 
+## 🗂️ Project Structure
+
+This repository now includes a standardized development layout:
+
+```text
+project-root/
+├── .vscode/      # Workspace editor/debug/tasks settings
+├── app/          # Backward-compatible shim modules (legacy imports)
+├── src/          # Primary source-code area (new runtime path)
+├── tests/        # Unit/integration tests
+├── docs/         # Documentation
+├── scripts/      # Utility scripts
+├── static/       # Shared frontend styles/assets
+├── templates/    # HTML templates
+├── .gitignore
+├── README.md
+└── requirements.txt
+```
+
+The VS Code workspace folder includes:
+
+```text
+.vscode/
+├── settings.json    # Python analysis/testing defaults
+├── extensions.json  # Recommended extensions
+├── launch.json      # Debug configuration for Flask
+└── tasks.json       # Install/run/test tasks
+```
+
 ## 🚀 Quick Start
 
 ```bash

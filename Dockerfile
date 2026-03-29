@@ -12,6 +12,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir flask requests gunicorn
 
 COPY app/       ./app/
+COPY src/       ./src/
 COPY templates/ ./templates/
 COPY static/    ./static/
 
@@ -23,7 +24,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 
 ENV DATA_DIR=/data
 
-CMD ["gunicorn", "--bind", "0.0.0.0:7979", "--workers", "1", "--threads", "4", "--chdir", "/app", "app.main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:7979", "--workers", "1", "--threads", "4", "--chdir", "/app", "src.mediahunter.main:app"]
 
 
 
