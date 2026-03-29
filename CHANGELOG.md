@@ -1,5 +1,18 @@
 ﻿# Changelog
 
+## [Unreleased]
+
+### Added
+- React SPA integration documentation and deployment guidance updated across the repository.
+- Frontend verify workflow (`npm run verify`) and SPA smoke script usage documented.
+
+### Changed
+- Runtime UI is documented as React-only, served from `frontend-dist/` by Flask.
+- Frontend docs now describe current integrated state (not scaffold-only).
+
+### Removed
+- Legacy template/preview documentation references that no longer match the codebase.
+
 ## [1.0 Beta] - 2026-03-22
 
 ### Added

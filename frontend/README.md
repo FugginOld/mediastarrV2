@@ -1,6 +1,6 @@
 # frontend
 
-React + TypeScript UI scaffold for MediaHunter.
+React + TypeScript UI for MediaHunter.
 
 ## Prerequisites
 - Node.js 20+
@@ -35,6 +35,5 @@ This validates core SPA routes, API availability, and built asset delivery.
 
 ## Notes
 - Backend API remains in src/mediahunter/main.py
-- This is Phase 1 scaffold (routing + API client + providers)
-- Theme tokens are sourced from frontend/src/styles/theme-system.css (ported from static/theme-system.css)
+- Theme tokens are sourced from frontend/src/styles/theme-system.css
 - Selected theme is persisted in localStorage (key: mh-theme)

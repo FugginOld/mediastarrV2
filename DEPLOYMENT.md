@@ -1,7 +1,7 @@
 # Deployment Guide - MediaHunter React SPA
 
 ## Overview
-MediaHunter serves a React Single Page Application (SPA) from Flask. This guide explains how to build and deploy the React frontend.
+MediaHunter serves a React Single Page Application (SPA) from Flask using assets from `frontend-dist/`. This guide explains the current build and deployment flow.
 
 ## Architecture
 
@@ -40,7 +40,7 @@ This creates:
 python3.13.exe -m flask --app src.mediahunter.main run --host 127.0.0.1 --port 7979
 ```
 
-Flask automatically detects if `frontend-dist/` exists and serves it with:
+Flask serves the UI from `frontend-dist/` and handles:
 - Static files (JS, CSS, assets) from the build folder
 - API routes from `/api/*` (preserved for backend)
 - Catch-all route that serves `index.html` for client-side routing
@@ -62,20 +62,15 @@ MediaHunter/
 └── ...
 ```
 
-## Flask React Detection
+## Flask SPA Serving
 
-The Flask backend automatically detects the React build:
+The backend serves the React index and built assets from `frontend-dist/`.
 
-```python
-# In src/mediahunter/main.py
-REACT_BUILD_PATH = Path(__file__).resolve().parents[2] / "frontend-dist"
-SERVE_REACT_SPA = REACT_BUILD_PATH.exists()
-```
-
-If `frontend-dist/` exists, Flask:
-1. Serves React build as the primary UI
-2. Routes all non-API requests to `index.html`
-3. Enables React Router for client-side navigation
+Key behavior:
+1. Serves React build as the primary UI.
+2. Routes all non-API requests to `index.html`.
+3. Preserves `/api/*` for backend endpoints.
+4. Serves `/assets/*` from `frontend-dist/assets/`.
 
 ## Routing Behavior
 
@@ -124,19 +119,7 @@ python3.13.exe -m flask --app src.mediahunter.main run
 
 ## Client-Side Routing
 
-Flask provides a **404 error handler** that enables client-side routing:
-
-```python
-@app.errorhandler(404)
-def e404(e):
-    """For React SPA, serve index.html for non-API routes."""
-    if SERVE_REACT_SPA and not request.path.startswith("/api/"):
-        try:
-            return app.send_static_file("index.html")
-        except:
-            pass
-    return jsonify({"ok":False,"error":"Not found"}),404
-```
+Flask provides non-API fallback behavior that returns the SPA index for unknown frontend routes.
 
 This allows:
 - Direct navigation to any route (e.g., `/setup`, `/login`, `/dashboard`)
@@ -146,21 +129,12 @@ This allows:
 
 ## Docker Deployment
 
-### Single Container (Recommended)
+### Single Container (Current)
+
+Current Dockerfile expects `frontend-dist/` to already exist in the repository context and copies it directly.
 
 ```dockerfile
-FROM node:20-alpine AS frontend-builder
-WORKDIR /build
-COPY frontend/ .
-RUN npm install && npm run build
-
-FROM python:3.13-slim
-WORKDIR /app
-COPY . .
-COPY --from=frontend-builder /build/dist ./frontend-dist
-RUN pip install -r requirements.txt
-EXPOSE 7979
-CMD ["python", "-m", "flask", "--app", "src.mediahunter.main", "run", "--host", "0.0.0.0"]
+COPY frontend-dist/ ./frontend-dist/
 ```
 
 **Build:**
@@ -178,7 +152,7 @@ docker run -p 7979:7979 mediahunter:latest
 ### React build not being served
 - Verify `frontend-dist/` exists in project root
 - Restart Flask to detect the new build
-- Check Flask logs for `SERVE_REACT_SPA = True`
+- Ensure `frontend-dist/index.html` exists and contains the React root element
 
 ### Routes returning 404 after refresh
 - Ensure Flask 404 handler is configured
@@ -226,14 +200,14 @@ npm run build
 ### Testing
 ```bash
 cd frontend
-npm run test:run
+npm run verify
 ```
 
 ### Local Testing
 ```bash
 # Build frontend
 cd frontend
-npm run build && cd ..
+npm run verify && cd ..
 
 # Run Flask
 python3.13.exe -m flask --app src.mediahunter.main run
@@ -244,6 +218,8 @@ python3.13.exe -m flask --app src.mediahunter.main run
 # 3. Navigate to /setup for setup wizard
 # 4. Test dashboard controls
 # 5. Test theme switching
+# 6. Run SPA smoke checks
+#    powershell -ExecutionPolicy Bypass -File scripts/react-spa-smoke.ps1
 ```
 
 ## Performance Considerations
@@ -256,16 +232,17 @@ python3.13.exe -m flask --app src.mediahunter.main run
 
 ## Next Steps
 
-1. **Verify production build locally**
-   ```bash
-   npm run build
-   python3.13.exe -m flask --app src.mediahunter.main run
-   ```
-
-2. **Run test suite**
+1. **Verify frontend build + tests**
    ```bash
    cd frontend
-   npm run test:run
+   npm run verify
+   ```
+
+2. **Run backend + SPA smoke checks**
+   ```bash
+   cd ..
+   python3.13.exe -m flask --app src.mediahunter.main run
+   powershell -ExecutionPolicy Bypass -File scripts/react-spa-smoke.ps1
    ```
 
 3. **Build Docker image and test**
@@ -277,11 +254,11 @@ python3.13.exe -m flask --app src.mediahunter.main run
 4. **Deploy to server/cloud**
    - Push to container registry
    - Deploy with your orchestration platform
-   - Ensure `frontend-dist/` is included in build
+   - Ensure `frontend-dist/` is included in image build context
 
 ## Support
 
-For issues or questions about the React migration:
+For issues or questions about the React runtime:
 - Check [TESTING.md](./frontend/TESTING.md) for test setup
 - Review [vite.config.ts](./frontend/vite.config.ts) for build configuration
 - Check [src/mediahunter/main.py](./src/mediahunter/main.py) for Flask SPA routing

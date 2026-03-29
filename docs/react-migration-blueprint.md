@@ -1,10 +1,12 @@
 # React Migration Blueprint (MediaHunter)
 
+> Historical planning document. Migration is complete and this file is retained for reference.
+
 ## Goal
 Keep the React frontend and Python backend integration stable and fully tested.
 
 ## Current State (Verified)
-- Backend app entry: src/mediahunter/main.py
+- Backend app entry: `src/mediahunter/main.py`
 - Current UI is React SPA served from `frontend-dist/` by Flask.
 - Shared CSS/UI tokens:
   - static/theme-system.css
@@ -14,7 +16,7 @@ Keep the React frontend and Python backend integration stable and fully tested.
 - API-first endpoints already exist and are sufficient for a staged migration.
 
 ## Recommended Frontend Target
-Use Vite + React + TypeScript.
+Implemented: Vite + React + TypeScript.
 
 Proposed structure:
 

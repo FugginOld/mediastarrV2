@@ -86,9 +86,9 @@ The VS Code workspace folder includes:
 └── tasks.json       # Install/run/test tasks
 ```
 
-## ⚛️ React Frontend Scaffold
+## ⚛️ React Frontend
 
-A Phase 1 React + TypeScript scaffold is available in:
+MediaHunter now uses a React + TypeScript frontend served by Flask from:
 
 ```text
 frontend/
@@ -96,9 +96,9 @@ frontend/
 
 Current status:
 
-- Router and base pages (`/`, `/setup`, `/login`) are scaffolded.
-- React Query provider and API client are wired to `/api/state`.
-- Backend remains source of truth in `src/mediahunter/main.py`.
+- Production React SPA routes: `/`, `/setup`, `/login`.
+- Frontend build + tests via `npm run verify` in `frontend/`.
+- Backend API and routing remain source of truth in `src/mediahunter/main.py`.
 
 To start frontend work after installing Node.js + npm:
 
@@ -106,6 +106,15 @@ To start frontend work after installing Node.js + npm:
 cd frontend
 npm install
 npm run dev
+```
+
+To run the production validation flow:
+
+```bash
+cd frontend
+npm run verify
+cd ..
+powershell -ExecutionPolicy Bypass -File scripts/react-spa-smoke.ps1
 ```
 
 ## 🚀 Quick Start
@@ -203,11 +212,9 @@ Settings → Discord:
 - `System` theme follows your OS/browser preference (`prefers-color-scheme`) automatically.
 - Theme choices are available directly in the UI with color swatches and saved to config.
 - Legacy theme values (`dark`, `light`, `oled`) are mapped automatically to `system` for backward compatibility.
-- Reusable styles are organized in shared static stylesheets for easier maintenance:
-  - `static/theme-system.css` (theme tokens + theme picker styles)
-  - `static/auth-common.css` (shared setup/login auth UI styles)
-  - `static/ui-primitives.css` (shared card/button/input foundations)
-  - `static/status-primitives.css` (shared status chips/results/badge semantics)
+- Frontend theme and UI styles are maintained in:
+  - `frontend/src/styles/theme-system.css`
+  - `frontend/src/styles/base.css`
 
 ## 📡 API
 

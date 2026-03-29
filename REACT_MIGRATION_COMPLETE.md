@@ -2,13 +2,13 @@
 
 ## ✅ Migration Complete
 
-The MediaHunter application is now running as a **React SPA (Single Page Application)** while maintaining full backend compatibility.
+The MediaHunter application runs as a **React SPA (Single Page Application)** served by Flask while maintaining backend API compatibility.
 
 ## What Was Accomplished
 
 ### 1. **Production Build Integration** ✅
 - Updated `vite.config.ts` with production build output path
-- Flask automatically detects and serves React build from `frontend-dist/`
+- Flask serves React build artifacts from `frontend-dist/`
 - Single-container deployment ready
 
 **Files Modified:**
@@ -144,7 +144,7 @@ src/mediahunter/main.py
 ### New Documentation Files
 - `frontend/TESTING.md` - Complete testing guide
 - `DEPLOYMENT.md` - Deployment and build guide
-- `react-migration-blueprint.md` - Original migration plan
+- `docs/react-migration-blueprint.md` - Original migration plan (historical reference)
 
 ## Migration Metrics
 
@@ -163,10 +163,10 @@ src/mediahunter/main.py
 ## Next Steps (Optional)
 
 ### Short Term
-1. ✅ Build and test production bundle locally
-2. ✅ Run test suite with `npm run test:run`
-3. ✅ Deploy to staging environment
-4. ✅ Smoke test all user flows
+1. Keep running `npm run verify` before release builds.
+2. Run `scripts/react-spa-smoke.ps1` against runtime environments.
+3. Track dependency vulnerabilities with periodic `npm audit` and upgrades.
+4. Keep deployment docs synchronized with Docker/runtime behavior.
 
 ### Medium Term
 - Add more unit tests for components
@@ -194,4 +194,4 @@ The React migration is **complete and production-ready**. The application:
 - ✅ Provides excellent developer experience with HMR
 - ✅ Has clear documentation for deployment and testing
 
-**Status: READY FOR PRODUCTION** 🚀
+**Status: READY FOR PRODUCTION**
